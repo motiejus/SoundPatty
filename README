@@ -1,22 +1,19 @@
-...### LICENSE ###...
+### LICENSE ###
 This will be licensed either in BSD, or in GPL.
 For now, it is entirely public domain.
 
-...### What is this ###...
-Efficient sound (i.e. record) recognition software based on pattern matching
+### What is this ###
+Efficient sound (i.e. record) recognition software based on some pattern matching.
 
-...### Where can I use it ###...
+### Where can You use it ###
 You can listen to live radio station and log how many your advertisements are played per day
 You can scan your music library for multiplied files
 You can match special operator messages when trying to initiate a VoIP call (for example, "out of credit")
 
-...### How can I collaborate ###...
-* Fork and code, ask me to merge
-* Update wikis
-* Suggest features or improvements
-* Report bugs
-* Any other type of help is appreciated.
+### How can You collaborate ###
+* RSS until I make some code ;)
 
-
-Good WAV specification I found yet (from here: http://www.dmoz.org/Computers/Multimedia/Music_and_Audio/Audio_Formats/WAV/ ):
+Good WAV specification I found from:
+http://www.dmoz.org/Computers/Multimedia/Music_and_Audio/Audio_Formats/WAV/
+is this:
 http://www.sonicspot.com/guide/wavefiles.html
