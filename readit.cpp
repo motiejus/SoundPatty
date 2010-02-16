@@ -2,18 +2,39 @@
 #include <string.h>
 #include <cstdio>
 
+#define BUFFERSIZE 1 // Number of sample rates
+
 using namespace std;
 bool check_sample(const char*, const char*);
+void process_headers(const char*);
 void fatal (const char* );
 
 char errmsg[200]; // Temporary message
-int SAMPLERATE;
+FILE *in;
+int SAMPLERATE, DATA_SIZE;
 
 int main (int argc, char *argv[]) {
     if (argc != 2) {
         fatal ("Unspecified input WAV file. exiting\n");
     }
-    FILE *in = fopen(argv[1], "rb");
+
+    process_headers(argv[1]);
+
+    short int buf [SAMPLERATE * BUFFERSIZE]; // Process buffer every second
+    while (! feof(in) ) {
+        fread(buf, 2, SAMPLERATE * BUFFERSIZE, in);
+        for (int i = 0; i < SAMPLERATE * BUFFERSIZE; i++) {
+            printf ("%d ", buf[i]);
+        }
+        // Let's do something with that numbers
+    }
+
+    exit(0);
+
+}
+
+void process_headers(const char * infile) {
+    in = fopen(infile, "rb");
     
     // Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
     char header[5];
@@ -42,22 +63,11 @@ int main (int argc, char *argv[]) {
 	fread(header, 1, 4, in);
 	strcpy(sample, "data");
 	if (! check_sample(sample, header)) {
-		fatal ("data chunk not found in byte offset=36, bad file.");
+		fatal ("data chunk not found in byte offset=36, file corrupted.");
 	}
-
-	exit(0);
- 
-    short int buf [100]; // 200 byte array
-    while (! feof(in) ) {
-        fread(buf, 2, 100, in);
-        for (int i = 0; i < 100; i++) {
-            printf ("%d ", buf[i]);
-        }
-        //printf ("%s\n", buf);
-    }
-
-    exit(0);
-
+    // Get data chunk size here
+	fread(&DATA_SIZE, 4, 1, in); // Single two-byte sample
+    //printf ("Datasize: %d bytes\n", DATA_SIZE);
 }
 
 bool check_sample (const char * sample, const char * b) { // My STRCPY.
