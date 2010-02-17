@@ -12,7 +12,7 @@
 #include <fstream>
 
 #define BUFFERSIZE 1 // Number of sample rates
-#define MINWAVEFREQ 40 // Minimum frequency (assume <40Hz do not exist here)
+#define MINWAVEFREQ 20 // Minimum frequency (assume <40Hz do not exist here)
 
 using namespace std;
 bool check_sample(const char*, const char*);
@@ -37,13 +37,15 @@ int main (int argc, char *argv[]) {
 	istringstream i(cfg["treshold1"]);
 	double treshold1;
 	i >> treshold1;
-	int min_silence = (int)(0x7FFF * treshold1); // Below this value we have "silence, pshhh..."
-	printf ("%d, %d\n", min_silence, PROC_SAMPLES);
+	int min_silence = (int)(0x8000 * treshold1); // Below this value we have "silence, pshhh..."
 
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
 	int here = 0, // Assume sample started
 		iscsi = 0; // Number of silence samples
 
+	int first_silence = 0;
+
+	printf ("samplerate: %d\ntreshold: %s\n", SAMPLE_RATE, cfg["treshold1"].c_str());
     while (! feof(in) ) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
         for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
@@ -51,10 +53,13 @@ int main (int argc, char *argv[]) {
 
 			if (cur <= min_silence) {
 				iscsi++;
-				//printf ("%d'th element found. %d < %d\n", iscsi, cur, min_silence);
 			} else {
 				if (iscsi >= PROC_SAMPLES) {
-					printf ("Found long silence. Length: %4.4f s, pos: %4.4f - %4.4f\n", (float)iscsi/SAMPLE_RATE, (float)(here-iscsi)/SAMPLE_RATE, (float)here/SAMPLE_RATE);
+					/*
+					   printf ("Found long silence. Length: %4.4f s, pos: %4.4f - %4.4f\n", 
+							(float)iscsi/SAMPLE_RATE, (float)(here-iscsi)/SAMPLE_RATE, (float)here/SAMPLE_RATE);
+					*/
+					printf("%d;%d\n", here, iscsi);
 				}
 				iscsi = 0;
 			}
