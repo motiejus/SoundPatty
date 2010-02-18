@@ -4,7 +4,7 @@ Efficient sound (i.e. record) recognition software based on some pattern matchin
 ### Where can You use it ###
 You can listen to live radio station and log how many your advertisements are played per day
 You can scan your music library for multiplied files
-You can match special operator messages when trying to initiate a VoIP call (for example, "out of credit")
+You can match special operator messages when trying to initiate a VoIP call (for example, "out of radio coverage")
 
 ### How can You collaborate ###
 * RSS until I make some code ;)
