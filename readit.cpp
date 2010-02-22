@@ -37,11 +37,14 @@ int main (int argc, char *argv[]) {
 	istringstream i(cfg["treshold1"]);
 	double treshold1;
 	i >> treshold1;
-	int min_silence = (int)(0x8000 * treshold1); // Below this value we have "silence, pshhh..."
+	// ------------------------------------------------------------
+	// This "15" means we have 16 bits for signed, this means
+	// 15 bits for unsigned int.
+	int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
 
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-	int here = 0, // Assume sample started
-		iscsi = 0; // Number of silence samples
+	int head = 0, // Assume sample started
+		found_s = 0; // Number of silence samples
 
 	int first_silence = 0;
 
@@ -52,18 +55,16 @@ int main (int argc, char *argv[]) {
 			int cur = abs(buf[i]);
 
 			if (cur <= min_silence) {
-				iscsi++;
+				found_s++;
 			} else {
-				if (iscsi >= PROC_SAMPLES) {
-					/*
+				if (found_s >= PROC_SAMPLES) {
 					   printf ("Found long silence. Length: %4.4f s, pos: %4.4f - %4.4f\n", 
-							(float)iscsi/SAMPLE_RATE, (float)(here-iscsi)/SAMPLE_RATE, (float)here/SAMPLE_RATE);
-					*/
-					printf("%d;%d\n", here, iscsi);
+							(float)found_s/SAMPLE_RATE, (float)(head-found_s)/SAMPLE_RATE, (float)head/SAMPLE_RATE);
+					printf("%d;%d\n", head, found_s);
 				}
-				iscsi = 0;
+				found_s = 0;
 			}
-			here++;
+			head++;
 			//printf ("min_silence is %d, but this value is: %d", min_silence, buf[i]);
         }
     }
