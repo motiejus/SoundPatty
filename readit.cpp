@@ -6,72 +6,145 @@
 #include <string.h>
 #include <cstdio>
 #include <map>
+#include <vector>
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 
-#define BUFFERSIZE 1 // Number of sample rates
-#define MINWAVEFREQ 20 // Minimum frequency (assume <40Hz do not exist here)
+#define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
+#define MINWAVEFREQ 20 // Minimum frequency that we want to process
 
 using namespace std;
 bool check_sample(const char*, const char*);
-void process_headers(const char*);
+FILE * process_headers(const char*);
+void dump_values(FILE * in);
+void read_periods(const char*);
 void read_cfg(const char*);
 void fatal (const char* );
 
 char errmsg[200]; // Temporary message
-FILE *in;
 int SAMPLE_RATE, // 
 	DATA_SIZE,  // Data chunk size in bytes
 	PROC_SAMPLES; // Minimum number of samples to process and be sure two waves included
 
 map<string, string> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
 
+struct trange {
+	double tmin; double tm; double tmax;
+};
+struct tworkitm {
+	int found; trange r;
+};
+
+typedef map<int, tworkitm> twork;
+
 int main (int argc, char *argv[]) {
-    if (argc != 2) {
+    if (argc < 2) {
         fatal ("Unspecified config file. exiting\n");
     }
 	read_cfg(argv[1]);
-    process_headers(cfg["filename"].c_str());
-	istringstream i(cfg["treshold1"]);
-	double treshold1;
-	i >> treshold1;
 	// ------------------------------------------------------------
-	// This "15" means we have 16 bits for signed, this means
-	// 15 bits for unsigned int.
-	int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
+	// Only header given, we just dump out the silence values
+	//
+	if (argc == 2) {
+		FILE * in = process_headers(cfg["filename"].c_str());
+		dump_values(in);
+	}
+	// ------------------------------------------------------------
+	// We have values file and a new samplefile. Let's rock
+	//
+	else if (argc == 4) {
+		vector<pair<double,trange> > vals;
+		twork work;
 
-    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-	int head = 0, // Assume sample started
-		found_s = 0; // Number of silence samples
+		ifstream file;
+		file.open(argv[2]);
+		string line;
+		int x;
+		while (! file.eof() ) {
+			getline(file, line);
+			x = line.find(";");
+			if (x == -1) break;
+			istringstream i(line.substr(0,x));
+			istringstream j(line.substr(x+1));
 
-	int first_silence = 0;
+			pair<double,trange> tmp;
+			i >> tmp.first;
+			j >> tmp.second.tm;
+			tmp.second.tmin = tmp.second.tm * 0.9;
+			tmp.second.tmax = tmp.second.tm * 1.1;
+			vals.insert(vals.end(), tmp);
+		}
+		// OK, we have it. Let's print?
+		//for (vector<trange>::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
+			//printf ("%.6f - %.6f\n", (*it1).first, (*it1).second);
+		//}
+		// ------------------------------------------------------------
+		// Let's work with the seconds sample like with a stream
+		//
+		FILE * an = process_headers(argv[3]);
+		// We can read and analyze it now
+		// Trying to match in only first 15 seconds of the record
 
-	printf ("samplerate: %d\ntreshold: %s\n", SAMPLE_RATE, cfg["treshold1"].c_str());
-    while (! feof(in) ) {
-        fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
-        for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
-			int cur = abs(buf[i]);
+		short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
+		istringstream i(cfg["treshold1"]);
+		double treshold1;
+		i >> treshold1;
+		int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
+			found_s = 0,
+			head = 0;
+		while (! feof(an) ) {
+			fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, an);
+			for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
+				int cur = abs(buf[i]);
 
-			if (cur <= min_silence) {
-				found_s++;
-			} else {
-				if (found_s >= PROC_SAMPLES) {
-					   printf ("Found long silence. Length: %4.4f s, pos: %4.4f - %4.4f\n", 
-							(float)found_s/SAMPLE_RATE, (float)(head-found_s)/SAMPLE_RATE, (float)head/SAMPLE_RATE);
-					printf("%d;%d\n", head, found_s);
+				if (cur <= min_silence) {
+					found_s++;
+				} else {
+					if (found_s >= PROC_SAMPLES) {
+						// Found a found_s/SAMPLE_RATE length silence
+						// Let's look for an analogous thing in vals variable (original file)
+						double sec = (double)found_s / SAMPLE_RATE;
+						bool found = false;
+						for (int i = 0; i < vals.size(); i++) {
+							if (vals[i].second.tmin < sec && sec < vals[i].second.tmax) {
+								found = true;
+								// Found a matching duration
+								/*
+								printf("%7.4f<->%7.4f,     %.4f<->%.4f (%5.2f%%)\n",
+										vals[i].first, (double)(head-found_s)/SAMPLE_RATE,
+										vals[i].second.tm, sec,
+										vals[i].second.tm *100/sec-100);
+										*/
+								// Check if it exists in our work array (by next number)
+								twork::iterator f = work.find(i+1);
+								if (f == work.end()) { // Not found, insert new elem.
+									tworkitm tmp;
+									tmp.found = 1;
+									tmp.r = vals[i+1].second;
+									work[i+1] = tmp;
+								}
+								else {
+									// We were waiting for this value! Lucky ;)
+									work[i+1].found++;
+									printf ("Incremented! to %d!\n", work[i+1].found);
+								}
+							}
+						}
+						if (!found) { // Found a silence, but could not find any matching element
+							work.clear();
+						}
+					}
+					found_s = 0;
 				}
-				found_s = 0;
+				head++;
 			}
-			head++;
-			//printf ("min_silence is %d, but this value is: %d", min_silence, buf[i]);
-        }
-    }
-
+		}
+	}
     exit(0);
-
 }
+
 void read_cfg (const char * filename) {
 	ifstream file;
 	file.open(filename);
@@ -85,8 +158,8 @@ void read_cfg (const char * filename) {
 	}
 }
 
-void process_headers(const char * infile) {
-    in = fopen(infile, "rb");
+FILE * process_headers(const char * infile) {
+    FILE * in = fopen(infile, "rb");
     
     // Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
     char header[5];
@@ -106,7 +179,7 @@ void process_headers(const char * infile) {
     }
 	// Number of channels must be "MONO"
     if ( tmp[1] != 1 ) {
-		sprintf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
+		printf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
 		fatal (errmsg);
     }
 	fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
@@ -121,6 +194,7 @@ void process_headers(const char * infile) {
     // Get data chunk size here
 	fread(&DATA_SIZE, 4, 1, in); // Single two-byte sample
     //printf ("Datasize: %d bytes\n", DATA_SIZE);
+	return in;
 }
 
 bool check_sample (const char * sample, const char * b) { // My STRCPY.
@@ -135,4 +209,37 @@ bool check_sample (const char * sample, const char * b) { // My STRCPY.
 void fatal (const char * msg) { // Print error message and exit
     perror (msg);
     exit (1);
+}
+
+void dump_values(FILE * in) {
+	istringstream i(cfg["treshold1"]);
+	double treshold1;
+	i >> treshold1;
+	// ------------------------------------------------------------
+	// This "15" means we have 16 bits for signed, this means
+	// 15 bits for unsigned int.
+	int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
+
+    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
+	int head = 0, // Assume sample started
+		found_s = 0; // Number of silence samples
+
+	int first_silence = 0;
+
+    while (! feof(in) ) {
+        fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
+        for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
+			int cur = abs(buf[i]);
+
+			if (cur <= min_silence) {
+				found_s++;
+			} else {
+				if (found_s >= PROC_SAMPLES) {
+					printf("%.6f;%.6f\n", (double)(head-found_s)/SAMPLE_RATE, (double)found_s/SAMPLE_RATE);
+				}
+				found_s = 0;
+			}
+			head++;
+        }
+    }
 }

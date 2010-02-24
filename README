@@ -6,6 +6,18 @@ You can listen to live radio station and log how many your advertisements are pl
 You can scan your music library for multiplied files
 You can match special operator messages when trying to initiate a VoIP call (for example, "out of radio coverage")
 
+### What does it do NOW ###
+g++ readit.cpp && ./a.out sample.cfg > sample.txt
+the TXT file will have the silence treshold values:
+	\d+;\d+
+First value is the start position of silence (in seconds)
+Second value is the length of the silence (in seconds)
+
+Afterwards, call program like this:
+./a.out sample.cfg sample.txt sample2.wav
+This (should) analyze the given 2'nd file and show the matching length (with original) samples in it.
+As you can see from the output, this part is not done.
+
 ### How can You collaborate ###
 * RSS until I make some code ;)
 
