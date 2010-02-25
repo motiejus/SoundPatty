@@ -30,16 +30,30 @@ int SAMPLE_RATE, //
 
 map<string, string> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
 
-struct trange {
-	double tmin; double tm; double tmax;
+class Range {
+	public:
+		Range() { tm = tmin = tmax = 0; };
+		Range(const double & a) { tm = a; tmin = a * 0.9; tmax = a * 1.1; }
+		Range operator = (const double i) { return Range(i); }
+		bool operator == (const double & i) const { return tmin < i && i < tmax; }
+		bool operator == (const Range & r) const { return r == tm; }
+		bool operator > (const double & i) const { return i > tmax; }
+		bool operator > (const Range & r) const { return r > tm; }
+		bool operator < (const double & i) const { return i < tmin; }
+		bool operator < (const Range & r) const { return r < tm; }
+	protected:
+		int tmin, tm, tmax;
 };
+
 struct tworkitm {
-	int found; trange r;
+	int found; Range r;
 };
 
 typedef map<int, tworkitm> twork;
+typedef multimap<Range,pair<int,double> > tvals;
 
 int main (int argc, char *argv[]) {
+
     if (argc < 2) {
         fatal ("Unspecified config file. exiting\n");
     }
@@ -55,26 +69,26 @@ int main (int argc, char *argv[]) {
 	// We have values file and a new samplefile. Let's rock
 	//
 	else if (argc == 4) {
-		vector<pair<double,trange> > vals;
+		tvals vals;
 		twork work;
 
 		ifstream file;
 		file.open(argv[2]);
 		string line;
 		int x;
-		while (! file.eof() ) {
+		double tmp2;
+		for (int i = 0; ! file.eof(); i++) {
 			getline(file, line);
 			x = line.find(";");
 			if (x == -1) break;
-			istringstream i(line.substr(0,x));
-			istringstream j(line.substr(x+1));
-
-			pair<double,trange> tmp;
-			i >> tmp.first;
-			j >> tmp.second.tm;
-			tmp.second.tmin = tmp.second.tm * 0.9;
-			tmp.second.tmax = tmp.second.tm * 1.1;
-			vals.insert(vals.end(), tmp);
+			istringstream place(line.substr(0,x));
+			istringstream range(line.substr(x+1));
+			pair<Range,pair<int,double> > tmp;
+			range >> tmp2;
+			tmp.first = tmp2;
+			place >> tmp.second.second;
+			tmp.second.first = i;
+			vals.insert(tmp);
 		}
 		// OK, we have it. Let's print?
 		//for (vector<trange>::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
@@ -105,12 +119,20 @@ int main (int argc, char *argv[]) {
 					if (found_s >= PROC_SAMPLES) {
 						// Found a found_s/SAMPLE_RATE length silence
 						// Let's look for an analogous thing in vals variable (original file)
-						double sec = (double)found_s / SAMPLE_RATE;
-						bool found = false;
-						for (int i = 0; i < vals.size(); i++) {
-							if (vals[i].second.tmin < sec && sec < vals[i].second.tmax) {
-								found = true;
+						double sec = (double)found_s/SAMPLE_RATE;
+						// Find sec in range
+						pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(sec);
+
+						if (pa.first == pa.second) {
+							// Silence of that length not found in vals
+							work.clear();
+						}
+						else 
+						{
+							for (tvals::iterator it1 = pa.first; it1 != pa.second; it1++)
+							{
 								// Found a matching duration
+								int i = (*it1).second.first; // Position in our array
 								/*
 								printf("%7.4f<->%7.4f,     %.4f<->%.4f (%5.2f%%)\n",
 										vals[i].first, (double)(head-found_s)/SAMPLE_RATE,
@@ -122,7 +144,9 @@ int main (int argc, char *argv[]) {
 								if (f == work.end()) { // Not found, insert new elem.
 									tworkitm tmp;
 									tmp.found = 1;
-									tmp.r = vals[i+1].second;
+									tvals::iterator it2 = it1;
+									it2++;
+									tmp.r = (*it2).first;
 									work[i+1] = tmp;
 								}
 								else {
@@ -132,11 +156,9 @@ int main (int argc, char *argv[]) {
 								}
 							}
 						}
-						if (!found) { // Found a silence, but could not find any matching element
-							work.clear();
-						}
+						// Looking for another silence
+						found_s = 0;
 					}
-					found_s = 0;
 				}
 				head++;
 			}
