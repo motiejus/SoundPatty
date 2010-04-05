@@ -16,6 +16,7 @@
 #define MINWAVEFREQ 20 // Minimum frequency that we want to process
 
 using namespace std;
+
 bool check_sample(const char*, const char*);
 FILE * process_headers(const char*);
 void dump_values(FILE * in);
@@ -54,15 +55,16 @@ typedef multimap<Range,pair<int,double> > tvals;
 
 int main (int argc, char *argv[]) {
 
-    if (argc < 2) {
-        fatal ("Unspecified config file. exiting\n");
+    if (argc < 3) {
+        fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
+                "./a.out config.cfg samplefile.txt catchable.wav");
     }
 	read_cfg(argv[1]);
 	// ------------------------------------------------------------
 	// Only header given, we just dump out the silence values
 	//
-	if (argc == 2) {
-		FILE * in = process_headers(cfg["filename"].c_str());
+	if (argc == 3) {
+		FILE * in = process_headers(argv[2]);
 		dump_values(in);
 	}
 	// ------------------------------------------------------------
