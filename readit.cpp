@@ -17,8 +17,8 @@
 
 using namespace std;
 
-bool check_sample(const char*, const char*);
 FILE * process_headers(const char*);
+bool check_sample(const char*, const char*);
 void dump_values(FILE * in);
 void read_periods(const char*);
 void read_cfg(const char*);
@@ -133,7 +133,14 @@ int main (int argc, char *argv[]) {
 						{
 							for (tvals::iterator it1 = pa.first; it1 != pa.second; it1++)
 							{
-								// Found a matching duration
+                                // ------------------------------------------------------------
+                                // Should change something here.
+                                //
+                                // work array must have not only one "desired" value,
+                                // but at least 3 (as my investigation had shown),
+                                // because sometimes values are just lost uselessly
+                                // whilst destroying the rating.
+                                //
 								int i = (*it1).second.first; // Position in our array
 								/*
 								printf("%7.4f<->%7.4f,     %.4f<->%.4f (%5.2f%%)\n",
