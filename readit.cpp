@@ -6,6 +6,8 @@
 #include <string.h>
 #include <cstdio>
 #include <map>
+#include <set>
+#include <list>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -14,6 +16,8 @@
 
 #define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
 #define MINWAVEFREQ 20 // Minimum frequency that we want to process
+#define MAXSTEPS 2 // How many steps to skip when we are looking for silences'
+#define MATCHME 7 // Matching this number of silences means success
 
 using namespace std;
 
@@ -45,20 +49,44 @@ class Range {
 	protected:
 		int tmin, tm, tmax;
 };
-
-struct tworkitm {
-	int found; Range r;
+typedef list<pair<int,int> > ttrace;
+class workitm {
+	public:
+		int len,a,b;
+		workitm(int a, int b) { len = 0; this->a = a; this->b = b; }
+		int ami(int, int);
+		ttrace trace;
 };
 
-typedef map<int, tworkitm> twork;
 typedef multimap<Range,pair<int,double> > tvals;
+typedef list<workitm> twork;
+
+// ------------------------------------------------------------
+// This method finds a "good" value in the set and
+// returns:
+// 0 if element deleted
+// 1 if it's a good element
+// 2 if the search is over (pattern recognized)
+//
+int workitm::ami(const int a, const int b) {
+	if (a - this->a > MAXSTEPS || this->b - b > MAXSTEPS) return 0;
+	// ------------------------------------------------------------
+	// Here we have a nice thing called success
+	// We fit the "region" here. We either finished,
+	// or just increasing len
+	//
+	// Hemm we should add some trace stuff here
+	this->trace.push_back(pair<int,int>(a,b));
+
+	return (++this->len < MATCHME)?1:2;
+}
 
 int main (int argc, char *argv[]) {
 
-    if (argc < 3) {
-        fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
-                "./a.out config.cfg samplefile.txt catchable.wav");
-    }
+	if (argc < 3) {
+		fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
+				"./a.out config.cfg samplefile.txt catchable.wav");
+	}
 	read_cfg(argv[1]);
 	// ------------------------------------------------------------
 	// Only header given, we just dump out the silence values
@@ -72,7 +100,6 @@ int main (int argc, char *argv[]) {
 	//
 	else if (argc == 4) {
 		tvals vals;
-		twork work;
 
 		ifstream file;
 		file.open(argv[2]);
@@ -94,7 +121,7 @@ int main (int argc, char *argv[]) {
 		}
 		// OK, we have it. Let's print?
 		//for (vector<trange>::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
-			//printf ("%.6f - %.6f\n", (*it1).first, (*it1).second);
+		//printf ("%.6f - %.6f\n", (*it1).first, (*it1).second);
 		//}
 		// ------------------------------------------------------------
 		// Let's work with the seconds sample like with a stream
@@ -109,7 +136,9 @@ int main (int argc, char *argv[]) {
 		i >> treshold1;
 		int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
 			found_s = 0,
+			b = -1, // This is the found silence counter (starting with zero)
 			head = 0;
+		twork work;
 		while (! feof(an) ) {
 			fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, an);
 			for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
@@ -119,50 +148,49 @@ int main (int argc, char *argv[]) {
 					found_s++;
 				} else {
 					if (found_s >= PROC_SAMPLES) {
+						b++; // Increasing the number of silence counter (sort of current index)
 						// Found a found_s/SAMPLE_RATE length silence
 						// Let's look for an analogous thing in vals variable (original file)
 						double sec = (double)found_s/SAMPLE_RATE;
 						// Find sec in range
 						pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(sec);
 
-						if (pa.first == pa.second) {
-							// Silence of that length not found in vals
-							work.clear();
-						}
-						else 
+						//------------------------------------------------------------
+						// We put a indexes here that we use for continued threads
+						// (we don't want to create a new "thread" with already
+						// used length of a silence)
+						//
+						set<int> used_a; 
+
+						//------------------------------------------------------------
+						// Iterating through samples that match the found silence
+						//
+						for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
 						{
-							for (tvals::iterator it1 = pa.first; it1 != pa.second; it1++)
-							{
-                                // ------------------------------------------------------------
-                                // Should change something here.
-                                //
-                                // work array must have not only one "desired" value,
-                                // but at least 3 (as my investigation had shown),
-                                // because sometimes values are just lost uselessly
-                                // whilst destroying the rating.
-                                //
-								int i = (*it1).second.first; // Position in our array
-								/*
-								printf("%7.4f<->%7.4f,     %.4f<->%.4f (%5.2f%%)\n",
-										vals[i].first, (double)(head-found_s)/SAMPLE_RATE,
-										vals[i].second.tm, sec,
-										vals[i].second.tm *100/sec-100);
-										*/
-								// Check if it exists in our work array (by next number)
-								twork::iterator f = work.find(i+1);
-								if (f == work.end()) { // Not found, insert new elem.
-									tworkitm tmp;
-									tmp.found = 1;
-									tvals::iterator it2 = it1;
-									it2++;
-									tmp.r = (*it2).first;
-									work[i+1] = tmp;
+							int a = (*in_a).second.first;
+							/*
+							   printf("%7.4f<->%7.4f,     %.4f<->%.4f (%5.2f%%)\n",
+							   vals[i].first, (double)(head-found_s)/SAMPLE_RATE,
+							   vals[i].second.tm, sec,
+							   vals[i].second.tm *100/sec-100);
+							   */
+							//------------------------------------------------------------
+							// Check if it exists in our work array
+							//
+							for (twork::iterator w = work.begin(); w != work.end(); w++) {
+								int r = w->ami(b, a);
+								switch (r) {
+									case 0: work.erase(w); break;
+									case 1: used_a.insert(a); break;
+									case 2: // We finished our work. Print the trace.
+										printf("Found a matching pattern! Length: %d, here comes the trace:\n", w->trace.size());
+										for (ttrace::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
+											printf("%d %d\n", tr->first, tr->second);
+										}
 								}
-								else {
-									// We were waiting for this value! Lucky ;)
-									work[i+1].found++;
-									printf ("Incremented! to %d!\n", work[i+1].found);
-								}
+							}
+							if (used_a.find(a) != used_a.end()) {
+								work.push_back(workitm(a,b));
 							}
 						}
 						// Looking for another silence
@@ -173,7 +201,7 @@ int main (int argc, char *argv[]) {
 			}
 		}
 	}
-    exit(0);
+	exit(0);
 }
 
 void read_cfg (const char * filename) {
@@ -190,29 +218,29 @@ void read_cfg (const char * filename) {
 }
 
 FILE * process_headers(const char * infile) {
-    FILE * in = fopen(infile, "rb");
-    
-    // Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
-    char header[5];
-    fread(header, 1, 4, in);
+	FILE * in = fopen(infile, "rb");
 
-    char sample[] = "RIFF";
-    if (! check_sample(sample, header) ) {
-        fatal ("RIFF header not found, exiting\n");
-    }
+	// Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
+	char header[5];
+	fread(header, 1, 4, in);
+
+	char sample[] = "RIFF";
+	if (! check_sample(sample, header) ) {
+		fatal ("RIFF header not found, exiting\n");
+	}
 	// Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
 	short int tmp[2]; // two-byte integer
 	fseek(in, 0x14, 0); // offset = 20 bytes
-    fread(&tmp, 2, 2, in); // Reading two two-byte samples (comp. code and no. of channels)
-    if ( tmp[0] != 1 ) {
+	fread(&tmp, 2, 2, in); // Reading two two-byte samples (comp. code and no. of channels)
+	if ( tmp[0] != 1 ) {
 		sprintf(errmsg, "Only PCM(1) supported, compression code given: %d\n", tmp[0]);
 		fatal (errmsg);
-    }
+	}
 	// Number of channels must be "MONO"
-    if ( tmp[1] != 1 ) {
+	if ( tmp[1] != 1 ) {
 		printf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
 		fatal (errmsg);
-    }
+	}
 	fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
 	//printf ("Sample rate: %d\n", SAMPLE_RATE);
 	PROC_SAMPLES = SAMPLE_RATE / MINWAVEFREQ;
@@ -222,24 +250,24 @@ FILE * process_headers(const char * infile) {
 	if (! check_sample(sample, header)) {
 		fatal ("data chunk not found in byte offset=36, file corrupted.");
 	}
-    // Get data chunk size here
+	// Get data chunk size here
 	fread(&DATA_SIZE, 4, 1, in); // Single two-byte sample
-    //printf ("Datasize: %d bytes\n", DATA_SIZE);
+	//printf ("Datasize: %d bytes\n", DATA_SIZE);
 	return in;
 }
 
 bool check_sample (const char * sample, const char * b) { // My STRCPY.
-    for(int i = 0; i < sizeof(sample)-1; i++) {
-        if (sample[i] != b[i]) {
-            return false;
-        }
-    }
-    return true;
+	for(int i = 0; i < sizeof(sample)-1; i++) {
+		if (sample[i] != b[i]) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void fatal (const char * msg) { // Print error message and exit
-    perror (msg);
-    exit (1);
+	perror (msg);
+	exit (1);
 }
 
 void dump_values(FILE * in) {
@@ -251,15 +279,15 @@ void dump_values(FILE * in) {
 	// 15 bits for unsigned int.
 	int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
 
-    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
+	short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
 	int head = 0, // Assume sample started
 		found_s = 0; // Number of silence samples
 
 	int first_silence = 0;
 
-    while (! feof(in) ) {
-        fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
-        for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
+	while (! feof(in) ) {
+		fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
+		for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
 			int cur = abs(buf[i]);
 
 			if (cur <= min_silence) {
@@ -271,6 +299,6 @@ void dump_values(FILE * in) {
 				found_s = 0;
 			}
 			head++;
-        }
-    }
+		}
+	}
 }
