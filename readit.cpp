@@ -49,16 +49,14 @@ class Range {
 	protected:
 		int tmin, tm, tmax;
 };
-typedef list<pair<int,int> > ttrace;
 class workitm {
 	public:
 		int len,a,b;
 		workitm(int a, int b) { len = 0; this->a = a; this->b = b; }
 		workitm() { len = a = b = 0; }
 		int ami(int, int);
-		ttrace trace;
+		list<pair<int, int> > trace;
 };
-
 // ------------------------------------------------------------
 // This method finds a "good" value in the set and
 // returns:
@@ -73,18 +71,13 @@ int workitm::ami(const int a, const int b) {
 	// We fit the "region" here. We either finished,
 	// or just increasing len
 	//
-	// Hemm we should add some trace stuff here
-	printf("Xa: %d, b: %d\n", a, b);
-	trace.push_back(pair<int,int>(a,b)); // Segfault here...
-	printf("Ya: %d, b: %d\n", a, b);
+    trace.push_back(pair<int, int>(a,b));
 	return ++(this->len) < MATCHME? 1:2;
 }
 
 typedef multimap<Range,pair<int,double> > tvals;
-typedef list<workitm> twork;
 
 int main (int argc, char *argv[]) {
-
 	if (argc < 3) {
 		fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
 				"./a.out config.cfg samplefile.txt catchable.wav");
@@ -140,7 +133,7 @@ int main (int argc, char *argv[]) {
 			found_s = 0,
 			b = -1, // This is the found silence counter (starting with zero)
 			head = 0;
-		twork work;
+		list<workitm> work;
 		while (! feof(an) ) {
 			fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, an);
 			for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
@@ -169,7 +162,7 @@ int main (int argc, char *argv[]) {
 						//
 						for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
 						{
-							int a = (*in_a).second.first;
+							int a = in_a->second.first;
 							/*
 							   printf("%7.4f<->%7.4f,     %.4f<->%.4f (%5.2f%%)\n",
 							   vals[i].first, (double)(head-found_s)/SAMPLE_RATE,
@@ -179,18 +172,17 @@ int main (int argc, char *argv[]) {
 							//------------------------------------------------------------
 							// Check if it exists in our work array
 							//
-							for (twork::iterator w = work.begin(); w != work.end(); w++) {
+							for (list<workitm>::iterator w = work.begin(); w != work.end(); w++) {
 								int r = w->ami(a,b);
 								switch (r) {
-									case 0: work.erase(w); break;
+									case 0: work.erase(w); w = work.begin(); break;
 									case 1: used_a.insert(a); break;
 									case 2: // We finished our work. Print the trace.
 										printf("Found a matching pattern! Length: %d, here comes the trace:\n", 1);
-											/*
-										for (ttrace::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
-											printf("%d %d\n", tr->first, tr->second);
-										}
-										*/
+                                        for (list<pair<int,int> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
+                                            printf("%d %d\n", tr->first, tr->second);
+                                        }
+                                        break;
 								}
 							}
 							if (used_a.find(a) == used_a.end()) {
