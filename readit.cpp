@@ -54,12 +54,10 @@ class workitm {
 	public:
 		int len,a,b;
 		workitm(int a, int b) { len = 0; this->a = a; this->b = b; }
+		workitm() { len = a = b = 0; }
 		int ami(int, int);
 		ttrace trace;
 };
-
-typedef multimap<Range,pair<int,double> > tvals;
-typedef list<workitm> twork;
 
 // ------------------------------------------------------------
 // This method finds a "good" value in the set and
@@ -69,17 +67,21 @@ typedef list<workitm> twork;
 // 2 if the search is over (pattern recognized)
 //
 int workitm::ami(const int a, const int b) {
-	if (a - this->a > MAXSTEPS || this->b - b > MAXSTEPS) return 0;
+	if (a - this->a > MAXSTEPS || b - this->b > MAXSTEPS) return 0;
 	// ------------------------------------------------------------
 	// Here we have a nice thing called success
 	// We fit the "region" here. We either finished,
 	// or just increasing len
 	//
 	// Hemm we should add some trace stuff here
-	this->trace.push_back(pair<int,int>(a,b));
-
-	return (++this->len < MATCHME)?1:2;
+	printf("Xa: %d, b: %d\n", a, b);
+	trace.push_back(pair<int,int>(a,b)); // Segfault here...
+	printf("Ya: %d, b: %d\n", a, b);
+	return ++(this->len) < MATCHME? 1:2;
 }
+
+typedef multimap<Range,pair<int,double> > tvals;
+typedef list<workitm> twork;
 
 int main (int argc, char *argv[]) {
 
@@ -178,18 +180,20 @@ int main (int argc, char *argv[]) {
 							// Check if it exists in our work array
 							//
 							for (twork::iterator w = work.begin(); w != work.end(); w++) {
-								int r = w->ami(b, a);
+								int r = w->ami(a,b);
 								switch (r) {
 									case 0: work.erase(w); break;
 									case 1: used_a.insert(a); break;
 									case 2: // We finished our work. Print the trace.
-										printf("Found a matching pattern! Length: %d, here comes the trace:\n", w->trace.size());
+										printf("Found a matching pattern! Length: %d, here comes the trace:\n", 1);
+											/*
 										for (ttrace::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
 											printf("%d %d\n", tr->first, tr->second);
 										}
+										*/
 								}
 							}
-							if (used_a.find(a) != used_a.end()) {
+							if (used_a.find(a) == used_a.end()) {
 								work.push_back(workitm(a,b));
 							}
 						}
