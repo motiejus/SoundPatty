@@ -17,7 +17,7 @@
 #define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
 #define MINWAVEFREQ 20 // Minimum frequency that we want to process
 #define MAXSTEPS 2 // How many steps to skip when we are looking for silences'
-#define MATCHME 7 // Matching this number of silences means success
+#define MATCHME 5 // Matching this number of silences means success
 
 using namespace std;
 
@@ -110,7 +110,7 @@ int main (int argc, char *argv[]) {
 		string line;
 		int x;
 		double tmp2;
-		for (int i = 0; ! file.eof(); i++) {
+		for (int i = 0; !file.eof(); i++) {
 			getline(file, line);
 			x = line.find(";");
 			if (x == -1) break;
@@ -118,7 +118,7 @@ int main (int argc, char *argv[]) {
 			istringstream range(line.substr(x+1));
 			pair<Range,pair<int,double> > tmp;
 			range >> tmp2;
-			tmp.first = tmp2;
+			tmp.first = Range(tmp2);
 			place >> tmp.second.second;
 			tmp.second.first = i;
 			vals.insert(tmp);
@@ -143,6 +143,10 @@ int main (int argc, char *argv[]) {
 			b = -1, // This is the found silence counter (starting with zero)
 			head = 0;
 		list<workitm> work;
+
+		// ------------------------------------------------------------
+		// Print vals<r Range, int number>
+		//
 		while (! feof(an) ) {
 			fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, an);
 			for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
@@ -157,15 +161,7 @@ int main (int argc, char *argv[]) {
 						// Look for an analogous thing in vals variable (original file)
 						double sec = (double)found_s/SAMPLE_RATE;
 						// Find sec in range
-						printf("Duration found: %.6f, valid elements: ", sec);
 						pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(sec);
-						printf("is equal: %d\n", pa.first == pa.second);
-
-						for (tvals::iterator it1 = pa.first; it1 != pa.second; it1++) {
-							printf("%.6f ", (double)it1->first.tm);
-						}
-						printf("\n");
-						return 0;
 
 						//------------------------------------------------------------
 						// We put a indexes here that we use for continued threads
