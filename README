@@ -6,7 +6,8 @@ You can listen to live radio station and log how many your advertisements are pl
 You can scan your music library for multiplied files
 You can match special operator messages when trying to initiate a VoIP call (for example, "out of radio coverage")
 
-### What does it do NOW (in dev branch) ###
+### What does it do NOW ###
+>>>>>>> origin/dev
 g++ readit.cpp && ./a.out sample.cfg > sample.txt
 the TXT file will have the silence treshold values:
 	\d+;\d+
