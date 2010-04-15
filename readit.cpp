@@ -17,7 +17,7 @@
 #define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
 #define MINWAVEFREQ 20 // Minimum frequency that we want to process
 #define MAXSTEPS 2 // How many steps to skip when we are looking for silences'
-#define MATCHME 5 // Matching this number of silences means success
+#define MATCHME 7 // Matching this number of silences means success
 
 using namespace std;
 
@@ -192,6 +192,7 @@ int main (int argc, char *argv[]) {
                                 w->trace.push_back(pair<int,int>(a,b));
                                 if (++(w->len) < MATCHME) { // Proceeding with the "thread"
                                     used_a.insert(a);
+									//printf ("Thread expanded to %d\n", w->len);
                                 } else { // This means the treshold is reached
                                     // This hack is needed to pass pointer to an instance o_O
                                     its_over(&(*w));
@@ -201,13 +202,13 @@ int main (int argc, char *argv[]) {
 							}
 
 							if (used_a.find(a) == used_a.end()) {
-                                printf("New values to array. Silence length: %.6f, a: %d, b: %d\n", sec, a, b);
+                                //printf("New values to array. Silence length: %.6f, a: %d, b: %d\n", sec, a, b);
 								work.push_back(workitm(a,b));
 							}
 						}
 						// Looking for another silence
-						found_s = 0;
 					}
+					found_s = 0;
 				}
 				head++;
 			}
