@@ -16,7 +16,7 @@
 
 #define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
 #define MINWAVEFREQ 20 // Minimum frequency that we want to process
-#define MAXSTEPS 2 // How many steps to skip when we are looking for silences'
+#define MAXSTEPS 3 // How many steps to skip when we are looking for silences'
 #define MATCHME 7 // Matching this number of silences means success
 
 using namespace std;
@@ -62,10 +62,13 @@ workitm::workitm(const int a, const int b) {
 };
 
 void its_over(workitm * w) {
+	printf("FOUND\n");
+	/*
     printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
     for (list<pair<int,int> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
         printf("%d %d\n", tr->first, tr->second);
     }
+	*/
     exit(0);
 }
 
@@ -149,9 +152,14 @@ int main (int argc, char *argv[]) {
 		//
 		while (! feof(an) ) {
 			fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, an);
+
+			if (head/SAMPLE_RATE >= 30) {
+				printf ("Exiting after 30 seconds, ");
+				break;
+			}
+
 			for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
 				int cur = abs(buf[i]);
-
 				if (cur <= min_silence) {
 					found_s++;
 				} else {
@@ -214,6 +222,7 @@ int main (int argc, char *argv[]) {
 			}
 		}
 	}
+	printf("NOT FOUND\n");
 	exit(0);
 }
 
