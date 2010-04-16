@@ -1,26 +1,24 @@
 ### What is this ###
-Efficient sound (i.e. record) recognition software based on some pattern matching.
+(Very) efficient sound (i.e. record) recognition software based on some pattern matching.
 
 ### Where can You use it ###
 You can listen to live radio station and log how many your advertisements are played per day
 You can scan your music library for multiplied files
 You can match special operator messages when trying to initiate a VoIP call (for example, "out of radio coverage")
 
-### What does it do NOW ###
->>>>>>> origin/dev
-g++ readit.cpp && ./a.out sample.cfg > sample.txt
+### What does it do ###
+g++ readit.cpp -o readit && ./readit sample.cfg > sample.txt
 the TXT file will have the silence treshold values:
 	\d+;\d+
 First value is the start position of silence (in seconds)
 Second value is the length of the silence (in seconds)
 
 Afterwards, call program like this:
-./a.out sample.cfg sample.txt sample2.wav
-This (should) analyze the given 2'nd file and show the matching length (with original) samples in it.
-As you can see from the output, this part is not done.
+./readit sample.cfg samplefile.txt catch_me.wav
+This analyzes the given 2'nd file and returns if it matches the sample.
 
 ### How can You collaborate ###
-* RSS until I make some code ;)
+Ask. The idea is now clear and it's working.
 
 Good WAV specification I found from:
 http://www.dmoz.org/Computers/Multimedia/Music_and_Audio/Audio_Formats/WAV/
@@ -31,8 +29,7 @@ Demo I will try to recognize is here (strictly 8 KHz 16 bit PCM wave):
 http://www.nch.com.au/acm/8k16bitpcm.wav
 
 ### LICENSE ###
-This will be licensed either in BSD, or in GPL.
-For now, it is entirely public domain.
+WTFPL
 
 ### Coder ###
 My CV is here: http://m.jakstys.lt/
