@@ -15,7 +15,8 @@
 #include <fstream>
 
 #define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
-#define MINWAVEFREQ 20 // Minimum frequency that we want to process
+#define MINWAVEFREQ 20 // Minimum frequency of sound that we want to process
+#define CHUNKSIZE 0.1 // Minimum chunk that we count
 #define MAXSTEPS 3 // How many steps to skip when we are looking for silences'
 #define MATCHME 7 // Matching this number of silences means success
 
@@ -28,10 +29,10 @@ void read_periods(const char*);
 void read_cfg(const char*);
 void fatal (const char* );
 
-char errmsg[200]; // Temporary message
-int SAMPLE_RATE, // 
-    DATA_SIZE,  // Data chunk size in bytes
-    PROC_SAMPLES; // Minimum number of samples to process and be sure two waves included
+char errmsg[200];   // Temporary message
+int SAMPLE_RATE,    // 
+    WAVE,           // SAMPLE_RATE*MINWAVEFREQ
+    DATA_SIZE;      // Data chunk size in bytes
 
 map<string, string> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
 
@@ -39,6 +40,8 @@ class Range {
     public:
         Range() { tm = tmin = tmax = 0; };
         Range(const double & a) { tm = a; tmin = a * 0.9; tmax = a * 1.1; }
+        Range(const double & tmin, const double &tm, const double &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
+        Range(const double & tmin, const double &tmax) { this->tmin = tmin; this->tmax = tmax; }
         Range operator = (const double i) { return Range(i); }
         bool operator == (const double & i) const { return tmin < i && i < tmax; }
         bool operator == (const Range & r) const { return r == tm; }
@@ -48,6 +51,12 @@ class Range {
         bool operator < (const Range & r) const { return r < tm; }
         double tmin, tm, tmax;
 };
+
+struct CrapRange {
+    int last, head, last_max, tail, min, max;
+    bool disable;
+};
+
 class workitm {
     public:
         int len,a,b;
@@ -55,6 +64,7 @@ class workitm {
         int ami(int, int);
         list<pair<int, int> > trace;
 };
+
 workitm::workitm(const int a, const int b) {
     this->a = a; this->b = b;
     len = 0;
@@ -148,7 +158,7 @@ int main (int argc, char *argv[]) {
                 if (cur <= min_silence) {
                     found_s++;
                 } else {
-                    if (found_s >= PROC_SAMPLES) {
+                    if (found_s >= WAVE) {
                         b++; // Increasing the number of silence counter (sort of current index)
                         // Found found_s/SAMPLE_RATE length silence
                         // Look for an analogous thing in vals variable (original file)
@@ -205,8 +215,8 @@ int main (int argc, char *argv[]) {
                 head++;
             }
         }
+        printf("NOT FOUND\n");
     }
-    printf("NOT FOUND\n");
     exit(0);
 }
 
@@ -248,8 +258,7 @@ FILE * process_headers(const char * infile) {
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
-    //printf ("Sample rate: %d\n", SAMPLE_RATE);
-    PROC_SAMPLES = SAMPLE_RATE / MINWAVEFREQ;
+    WAVE = SAMPLE_RATE*MINWAVEFREQ;
     fseek(in, 0x24, 0);
     fread(header, 1, 4, in);
     strcpy(sample, "data");
@@ -277,18 +286,62 @@ void fatal (const char * msg) { // Print error message and exit
 }
 
 void dump_values(FILE * in) {
-    istringstream i(cfg["treshold1"]);
-    double treshold1;
-    i >> treshold1;
+    double treshold1 = 0.2;
     // ------------------------------------------------------------
     // This "15" means we have 16 bits for signed, this means
     // 15 bits for unsigned int.
-    int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
 
+    // FIX THESE depending on bitrate!!
+    vector<CrapRange> ranges;
+    CrapRange tmp;
+
+    tmp.min = tmp.disable = tmp.last = tmp.last_max = 0;
+    tmp.max = (int)(1<<15)*0.2;
+    ranges.push_back(tmp);
+    printf ("min: %d, max: %d, last_max: %d, last: %d, disable: %d\n", tmp.min, tmp.max, tmp.last_max, tmp.last, tmp.disable);
+
+    tmp.min = (int)(1<<15)*0.8; tmp.max = (int)(1<<15)*1;
+    ranges.push_back(tmp);
+
+    printf ("min: %d, max: %d, last_max: %d, last: %d, disable: %d\n", tmp.min, tmp.max, tmp.last_max, tmp.last, tmp.disable);
+    exit(1);
+    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
+    for (int i = 0; !feof(in); noop();) {
+        fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
+        for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; j++) {
+            int cur = abs(buf[j]);
+
+            for (vector<CrapRange>::iterator R = ranges.begin(); R != ranges.end(); R++) {
+                if (R->min < cur && cur <= R->max) { // cur in Range
+                    if (R->disable or i - R->last > WAVE) {
+                        R->tail = i;
+                    }
+                    R->disable = 1;
+                    R->last = i; // Last_item_in_interval
+                    R->last_max = i; // last maximum in this range
+                }
+                // If current value exceeds maximum, we kick it away
+                else {
+                    if (cur > R->max || i - R->last > WAVE && R->last_max < R->min) {
+                        if (R->disable) {
+                            // We should add a new value here to our working array (found a treshold)
+                            printf("(%.2f-%.2f) Start: %.6f, Length: %.6f\n",
+                                    R->min / (1<<15), R->max/(1<<15), R->tail, R->last - R->tail);
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+
+
+    /*
+    int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
     int head = 0, // Assume sample started
         found_s = 0; // Number of silence samples
-
     int first_silence = 0;
 
     while (! feof(in) ) {
@@ -299,12 +352,13 @@ void dump_values(FILE * in) {
             if (cur <= min_silence) {
                 found_s++;
             } else {
-                if (found_s >= PROC_SAMPLES) {
-                    printf("%.6f;%.6f\n", (double)(head-found_s)/SAMPLE_RATE, (double)found_s/SAMPLE_RATE);
+                if (found_s >= WAVE) {
+                    //printf("%.6f;%.6f\n", (double)(head-found_s)/SAMPLE_RATE, (double)found_s/SAMPLE_RATE);
                 }
                 found_s = 0;
             }
             head++;
         }
     }
+    */
 }
