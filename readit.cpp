@@ -75,21 +75,6 @@ void its_over(workitm * w) {
 typedef multimap<Range,pair<int,double> > tvals;
 
 int main (int argc, char *argv[]) {
-    /*
-       C++ games
-       multimap<Range, double> a;
-       a.insert(pair<Range, double>(Range(5), 5));
-       a.insert(pair<Range, double>(Range(5.2), 5.2));
-
-       pair<multimap<Range,double>::iterator, multimap<Range,double>::iterator> i = a.equal_range(5);
-       printf("Valid elements: ");
-       for (multimap<Range,double>::iterator it1 = i.first; it1 != i.second; it1++) {
-       printf("%.6f ", it1->first.tm);
-       }
-       return 0;
-
-     */
-
     if (argc < 3) {
         fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
                 "./a.out config.cfg samplefile.txt catchable.wav");
@@ -210,12 +195,11 @@ int main (int argc, char *argv[]) {
                             }
 
                             if (used_a.find(a) == used_a.end()) {
-                                //printf("New values to array. Silence length: %.6f, a: %d, b: %d\n", sec, a, b);
                                 work.push_back(workitm(a,b));
                             }
                         }
-                        // Looking for another silence
                     }
+                    // Looking for another silence
                     found_s = 0;
                 }
                 head++;
