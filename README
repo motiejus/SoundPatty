@@ -7,7 +7,7 @@ You can scan your music library for multiplied files
 You can match special operator messages when trying to initiate a VoIP call (for example, "out of radio coverage")
 
 ### What does it do ###
-g++ readit.cpp -o readit && ./readit sample.cfg > sample.txt
+make && ./readit sample.cfg > sample.txt
 the TXT file will have the silence treshold values:
 	\d+;\d+
 First value is the start position of silence (in seconds)

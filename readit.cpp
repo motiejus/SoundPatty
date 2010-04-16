@@ -56,20 +56,20 @@ class workitm {
 		list<pair<int, int> > trace;
 };
 workitm::workitm(const int a, const int b) {
-    this->a = a; this->b = b;
-    len = 0;
-    trace.push_back(pair<int,int>(a,b));
+	this->a = a; this->b = b;
+	len = 0;
+	trace.push_back(pair<int,int>(a,b));
 };
 
 void its_over(workitm * w) {
 	printf("FOUND\n");
 	/*
-    printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
-    for (list<pair<int,int> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
-        printf("%d %d\n", tr->first, tr->second);
-    }
-	*/
-    exit(0);
+	   printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
+	   for (list<pair<int,int> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
+	   printf("%d %d\n", tr->first, tr->second);
+	   }
+	 */
+	exit(0);
 }
 
 typedef multimap<Range,pair<int,double> > tvals;
@@ -77,18 +77,18 @@ typedef multimap<Range,pair<int,double> > tvals;
 int main (int argc, char *argv[]) {
 	/*
 	   C++ games
-	multimap<Range, double> a;
-	a.insert(pair<Range, double>(Range(5), 5));
-	a.insert(pair<Range, double>(Range(5.2), 5.2));
+	   multimap<Range, double> a;
+	   a.insert(pair<Range, double>(Range(5), 5));
+	   a.insert(pair<Range, double>(Range(5.2), 5.2));
 
-	pair<multimap<Range,double>::iterator, multimap<Range,double>::iterator> i = a.equal_range(5);
-	printf("Valid elements: ");
-	for (multimap<Range,double>::iterator it1 = i.first; it1 != i.second; it1++) {
-		printf("%.6f ", it1->first.tm);
-	}
-	return 0;
+	   pair<multimap<Range,double>::iterator, multimap<Range,double>::iterator> i = a.equal_range(5);
+	   printf("Valid elements: ");
+	   for (multimap<Range,double>::iterator it1 = i.first; it1 != i.second; it1++) {
+	   printf("%.6f ", it1->first.tm);
+	   }
+	   return 0;
 
-	*/
+	 */
 
 	if (argc < 3) {
 		fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
@@ -188,29 +188,29 @@ int main (int argc, char *argv[]) {
 							// Check if it exists in our work array
 							//
 							for (list<workitm>::iterator w = work.begin(); w != work.end();) {
-                                if (b - w->b > MAXSTEPS) {
-                                    work.erase(w); w = work.begin(); continue;
-                                }
-                                if (b == w->b || a - w->a > MAXSTEPS || w->a >= a) { w++; continue; }
-                                // ------------------------------------------------------------
-                                // We fit the "region" here. We either finished,
-                                // or just increasing len
-                                //
-                                w->a = a; w->b = b;
-                                w->trace.push_back(pair<int,int>(a,b));
-                                if (++(w->len) < MATCHME) { // Proceeding with the "thread"
-                                    used_a.insert(a);
+								if (b - w->b > MAXSTEPS) {
+									work.erase(w); w = work.begin(); continue;
+								}
+								if (b == w->b || a - w->a > MAXSTEPS || w->a >= a) { w++; continue; }
+								// ------------------------------------------------------------
+								// We fit the "region" here. We either finished,
+								// or just increasing len
+								//
+								w->a = a; w->b = b;
+								w->trace.push_back(pair<int,int>(a,b));
+								if (++(w->len) < MATCHME) { // Proceeding with the "thread"
+									used_a.insert(a);
 									//printf ("Thread expanded to %d\n", w->len);
-                                } else { // This means the treshold is reached
-                                    // This hack is needed to pass pointer to an instance o_O
-                                    its_over(&(*w));
-                                }
-                                w++;
-                                // End of work iteration array
+								} else { // This means the treshold is reached
+									// This hack is needed to pass pointer to an instance o_O
+									its_over(&(*w));
+								}
+								w++;
+								// End of work iteration array
 							}
 
 							if (used_a.find(a) == used_a.end()) {
-                                //printf("New values to array. Silence length: %.6f, a: %d, b: %d\n", sec, a, b);
+								//printf("New values to array. Silence length: %.6f, a: %d, b: %d\n", sec, a, b);
 								work.push_back(workitm(a,b));
 							}
 						}
