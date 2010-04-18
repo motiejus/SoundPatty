@@ -1,3 +1,22 @@
+/*  
+ *  readit.cpp
+ *
+ *  Copyright (c) 2010 Motiejus Jakštys
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 3.
+
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+
 /*
  * Only 16 bit PCM MONO supported now.
  */
@@ -304,9 +323,9 @@ void dump_values(FILE * in) {
     ranges.push_back(tmp);
 
     printf ("min: %d, max: %d, last_max: %d, last: %d, disable: %d\n", tmp.min, tmp.max, tmp.last_max, tmp.last, tmp.disable);
-    exit(1);
+    //exit(1);
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-    for (int i = 0; !feof(in); noop();) {
+    for (int i = 0; !feof(in);) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
         for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; j++) {
             int cur = abs(buf[j]);
