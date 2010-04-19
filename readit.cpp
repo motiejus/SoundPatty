@@ -43,7 +43,7 @@ using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void dump_values(FILE * in);
+void dump_values(FILE * in, void (*callback)(int, double, double));
 void read_periods(const char*);
 void read_cfg(const char*);
 void fatal (const char* );
@@ -104,10 +104,14 @@ void its_over(workitm * w) {
 
 typedef multimap<Range,pair<int,double> > tvals;
 
+void dump_out(int w, double place, double len) {
+    printf ("%d;%.6f;%.6f\n", w, place, len);
+}
+
 int main (int argc, char *argv[]) {
     if (argc < 3) {
-        fatal ("Usage: ./a.out config.cfg sample.wav\n\nor\n"
-                "./a.out config.cfg samplefile.txt catchable.wav");
+        fatal ("Usage: ./readit config.cfg sample.wav\n\nor\n"
+                "./readit config.cfg samplefile.txt catchable.wav");
     }
     read_cfg(argv[1]);
     // ------------------------------------------------------------
@@ -115,7 +119,7 @@ int main (int argc, char *argv[]) {
     //
     if (argc == 3) {
         FILE * in = process_headers(argv[2]);
-        dump_values(in);
+        dump_values(in, dump_out);
     }
     // ------------------------------------------------------------
     // We have values file and a new samplefile. Let's rock
@@ -306,8 +310,10 @@ void fatal (const char * msg) { // Print error message and exit
     exit (1);
 }
 
-void dump_values(FILE * in) {
-    double treshold1 = 0.2;
+void dump_values(FILE * in, void (*callback)(int, double, double)) {
+    istringstream i(cfg["treshold1"]);
+    double treshold1;
+    i >> treshold1;
     // ------------------------------------------------------------
     // This "15" means we have 16 bits for signed, this means
     // 15 bits for unsigned int.
@@ -319,12 +325,10 @@ void dump_values(FILE * in) {
     tmp.tail = tmp.min = tmp.proc = tmp.head = 0;
     tmp.max = (int)(1<<15)*0.2;
     ranges.push_back(tmp);
-    printf ("min: %d, max: %d, head: %d, proc: %d\n", tmp.min, tmp.max, tmp.head, tmp.proc);
 
     tmp.min = (int)(1<<15)*0.8; tmp.max = (int)(1<<15)*1;
     ranges.push_back(tmp);
 
-    printf ("min: %d, max: %d, head: %d, proc: %d\n", tmp.min, tmp.max, tmp.head, tmp.proc);
     //exit(1);
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
     for (int i = 0; !feof(in);) {
@@ -355,7 +359,7 @@ void dump_values(FILE * in) {
                             // ------------------------------------------------------------
                             // The previous chunk is big enough to be noticed
                             //
-                            printf("%d Start: %6d, Length: %6d\n", r, R->tail, R->head - R->tail);
+                            callback(r, (double)R->tail/SAMPLE_RATE, (double)(R->head - R->tail)/SAMPLE_RATE);
                         } 
                         // ------------------------------------------------------------
                         // Else it is too small, but we don't want to do anything in that case
