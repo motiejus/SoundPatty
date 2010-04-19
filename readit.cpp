@@ -54,7 +54,7 @@ int SAMPLE_RATE,    //
     CHUNKSIZE,      // CHUNKLEN*SAMPLE_RATE
     DATA_SIZE;      // Data chunk size in bytes
 
-map<string, string> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
+map<string, double> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
 
 class Range {
     public:
@@ -76,6 +76,7 @@ struct CrapRange {
     int head, tail, min, max;
     bool proc;
 };
+vector<CrapRange> ranges;
 
 class workitm {
     public:
@@ -253,8 +254,17 @@ void read_cfg (const char * filename) {
         getline(file, line);
         x = line.find(":");
         if (x == -1) break; // Last line, exit
-        cfg[line.substr(0,x)] = line.substr(x+2);
+
+		istringstream i(line.substr(x+2));
+		double tmp;
+		i >> tmp;
+        cfg[line.substr(0,x)] = tmp;
     }
+	// Change cfg["treshold\d+_(min|max)"] to
+	// something more compatible with CrapRange map
+	for(map<string, double>::iterator C = cfg.start(); C != cfg.end(); cfg++) {
+		printf("treshold1_ found in %d\n", C->first.find("treshold1_"));
+	}
 }
 
 FILE * process_headers(const char * infile) {
@@ -312,8 +322,6 @@ void fatal (const char * msg) { // Print error message and exit
 
 void dump_values(FILE * in, void (*callback)(int, double, double)) {
     istringstream i(cfg["treshold1"]);
-    double treshold1;
-    i >> treshold1;
     // ------------------------------------------------------------
     // This "15" means we have 16 bits for signed, this means
     // 15 bits for unsigned int.
