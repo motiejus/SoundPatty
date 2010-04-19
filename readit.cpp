@@ -34,8 +34,8 @@
 #include <fstream>
 
 #define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
-#define MINWAVEFREQ 20 // Minimum frequency of sound that we want to process
-#define CHUNKSIZE 0.1 // Minimum chunk that we count
+#define MINWAVEFREQ 20 // Minimum frequency of sound that we want to process (0.05 sec)
+#define CHUNKLEN 0.1 // Minimum chunk that we count
 #define MAXSTEPS 3 // How many steps to skip when we are looking for silences'
 #define MATCHME 7 // Matching this number of silences means success
 
@@ -51,6 +51,7 @@ void fatal (const char* );
 char errmsg[200];   // Temporary message
 int SAMPLE_RATE,    // 
     WAVE,           // SAMPLE_RATE*MINWAVEFREQ
+    CHUNKSIZE,      // CHUNKLEN*SAMPLE_RATE
     DATA_SIZE;      // Data chunk size in bytes
 
 map<string, string> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
@@ -72,8 +73,8 @@ class Range {
 };
 
 struct CrapRange {
-    int last, head, last_max, tail, min, max;
-    bool disable;
+    int head, tail, min, max;
+    bool proc;
 };
 
 class workitm {
@@ -277,7 +278,8 @@ FILE * process_headers(const char * infile) {
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
-    WAVE = SAMPLE_RATE*MINWAVEFREQ;
+    WAVE = SAMPLE_RATE/MINWAVEFREQ;
+    CHUNKSIZE = CHUNKLEN*SAMPLE_RATE;
     fseek(in, 0x24, 0);
     fread(header, 1, 4, in);
     strcpy(sample, "data");
@@ -314,70 +316,55 @@ void dump_values(FILE * in) {
     vector<CrapRange> ranges;
     CrapRange tmp;
 
-    tmp.min = tmp.disable = tmp.last = tmp.last_max = 0;
+    tmp.tail = tmp.min = tmp.proc = tmp.head = 0;
     tmp.max = (int)(1<<15)*0.2;
     ranges.push_back(tmp);
-    printf ("min: %d, max: %d, last_max: %d, last: %d, disable: %d\n", tmp.min, tmp.max, tmp.last_max, tmp.last, tmp.disable);
+    printf ("min: %d, max: %d, head: %d, proc: %d\n", tmp.min, tmp.max, tmp.head, tmp.proc);
 
     tmp.min = (int)(1<<15)*0.8; tmp.max = (int)(1<<15)*1;
     ranges.push_back(tmp);
 
-    printf ("min: %d, max: %d, last_max: %d, last: %d, disable: %d\n", tmp.min, tmp.max, tmp.last_max, tmp.last, tmp.disable);
+    printf ("min: %d, max: %d, head: %d, proc: %d\n", tmp.min, tmp.max, tmp.head, tmp.proc);
     //exit(1);
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
     for (int i = 0; !feof(in);) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
-        for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; j++) {
+        for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; i++, j++) {
             int cur = abs(buf[j]);
 
-            for (vector<CrapRange>::iterator R = ranges.begin(); R != ranges.end(); R++) {
-                if (R->min < cur && cur <= R->max) { // cur in Range
-                    if (R->disable or i - R->last > WAVE) {
+            int r = 0; // Counter for R
+            for (vector<CrapRange>::iterator R = ranges.begin(); R != ranges.end(); R++, r++) {
+                if (R->min <= cur && cur <= R->max) {
+                    // ------------------------------------------------------------
+                    // If it's first item in this wave (proc = processing started)
+                    //
+                    if (!R->proc) {
                         R->tail = i;
+                        R->proc = true;
                     }
-                    R->disable = 1;
-                    R->last = i; // Last_item_in_interval
-                    R->last_max = i; // last maximum in this range
-                }
-                // If current value exceeds maximum, we kick it away
-                else {
-                    if (cur > R->max || i - R->last > WAVE && R->last_max < R->min) {
-                        if (R->disable) {
-                            // We should add a new value here to our working array (found a treshold)
-                            printf("(%.2f-%.2f) Start: %.6f, Length: %.6f\n",
-                                    R->min / (1<<15), R->max/(1<<15), R->tail, R->last - R->tail);
-                        }
+                    // ------------------------------------------------------------
+                    // Here we are just normally in the wave.
+                    //
+                    R->head = i;
+                } else { // We are not in the wave
+                    if (R->proc && (R->min == 0 || i - R->head > WAVE)) {
+                        //------------------------------------------------------------
+                        // This wave is over
+                        //
+                        if (i - R->tail >= CHUNKSIZE) {
+                            // ------------------------------------------------------------
+                            // The previous chunk is big enough to be noticed
+                            //
+                            printf("%d Start: %6d, Length: %6d\n", r, R->tail, R->head - R->tail);
+                        } 
+                        // ------------------------------------------------------------
+                        // Else it is too small, but we don't want to do anything in that case
+                        // So therefore we just say that wave processing is over
+                        //
+                        R->proc = false;
                     }
                 }
-
             }
         }
     }
-
-
-
-    /*
-    int min_silence = (int)((1 << 15) * treshold1); // Below this value we have "silence, pshhh..."
-    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-    int head = 0, // Assume sample started
-        found_s = 0; // Number of silence samples
-    int first_silence = 0;
-
-    while (! feof(in) ) {
-        fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
-        for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
-            int cur = abs(buf[i]);
-
-            if (cur <= min_silence) {
-                found_s++;
-            } else {
-                if (found_s >= WAVE) {
-                    //printf("%.6f;%.6f\n", (double)(head-found_s)/SAMPLE_RATE, (double)found_s/SAMPLE_RATE);
-                }
-                found_s = 0;
-            }
-            head++;
-        }
-    }
-    */
 }
