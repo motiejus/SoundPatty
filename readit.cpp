@@ -20,33 +20,32 @@
 /*
  * Only 16 bit PCM MONO supported now.
  */
+#include <math.h>
 #include <algorithm>
 #include <stdlib.h>
-#include <string.h>
 #include <cstdio>
 #include <map>
 #include <set>
 #include <list>
 #include <vector>
 #include <string>
+#include <string.h>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 
-#define BUFFERSIZE 1 // Number of sample rates (ex. seconds)
-#define MINWAVEFREQ 20 // Minimum frequency of sound that we want to process (0.05 sec)
-#define CHUNKLEN 0.1 // Minimum chunk that we count
-#define MAXSTEPS 3 // How many steps to skip when we are looking for silences'
-#define MATCHME 7 // Matching this number of silences means success
+#define BUFFERSIZE 1
 
 using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void dump_values(FILE * in, void (*callback)(int, double, double));
+void dump_values(FILE * in, void (*callback)(int, double, double, int));
 void read_periods(const char*);
+void do_checking (int, double, double, int);
 void read_cfg(const char*);
 void fatal (const char* );
+vector<string> explode(const string&, const string&); // Found somewhere on NET
 
 char errmsg[200];   // Temporary message
 int SAMPLE_RATE,    // 
@@ -103,11 +102,18 @@ void its_over(workitm * w) {
     exit(0);
 }
 
-typedef multimap<Range,pair<int,double> > tvals;
+struct valsitm {
+    int c; // Counter in map
+    double place;
+};
+typedef multimap<pair<int, Range>, valsitm> tvals;
+tvals vals;
+list<workitm> work;
 
-void dump_out(int w, double place, double len) {
+void dump_out(int w, double place, double len, int noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
 }
+
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
@@ -126,24 +132,24 @@ int main (int argc, char *argv[]) {
     // We have values file and a new samplefile. Let's rock
     //
     else if (argc == 4) {
-        tvals vals;
 
         ifstream file;
         file.open(argv[2]);
         string line;
-        int x;
-        double tmp2;
         for (int i = 0; !file.eof(); i++) {
             getline(file, line);
-            x = line.find(";");
-            if (x == -1) break;
-            istringstream place(line.substr(0,x));
-            istringstream range(line.substr(x+1));
-            pair<Range,pair<int,double> > tmp;
-            range >> tmp2;
-            tmp.first = Range(tmp2);
-            place >> tmp.second.second;
-            tmp.second.first = i;
+            if (line.size() == 0) break;
+            vector<string> numbers = explode(";", line);
+            istringstream num(numbers[0]);
+            istringstream place(numbers[1]);
+            istringstream range(numbers[2]);
+
+            double tmp2;
+            pair<pair<int, Range>,valsitm > tmp;
+            num >> tmp2; tmp.first.first = tmp2; // Index in ranges
+            range >> tmp2; tmp.first.second = Range(tmp2);
+            place >> tmp.second.place; // Place in the stream
+            tmp.second.c = i; // Counter in the stream
             vals.insert(tmp);
         }
         // OK, we have it. Let's print?
@@ -158,91 +164,78 @@ int main (int argc, char *argv[]) {
         // Trying to match in only first 15 seconds of the record
 
         short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-        istringstream i(cfg["treshold1"]);
-        double treshold1;
-        i >> treshold1;
+        double treshold1 = cfg["treshold1"];
         int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
             found_s = 0,
             b = -1, // This is the found silence counter (starting with zero)
             head = 0;
-        list<workitm> work;
 
         // ------------------------------------------------------------
         // Print vals<r Range, int number>
         //
-        while (! feof(an) ) {
-            fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, an);
-
-            if (head/SAMPLE_RATE >= 30) {
-                printf ("Exiting after 30 seconds, ");
-                break;
-            }
-
-            for (int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
-                int cur = abs(buf[i]);
-                if (cur <= min_silence) {
-                    found_s++;
-                } else {
-                    if (found_s >= WAVE) {
-                        b++; // Increasing the number of silence counter (sort of current index)
-                        // Found found_s/SAMPLE_RATE length silence
-                        // Look for an analogous thing in vals variable (original file)
-                        double sec = (double)found_s/SAMPLE_RATE;
-                        // Find sec in range
-                        pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(sec);
-
-                        //------------------------------------------------------------
-                        // We put a indexes here that we use for continued threads
-                        // (we don't want to create a new "thread" with already
-                        // used length of a silence)
-                        //
-                        set<int> used_a; 
-
-                        //------------------------------------------------------------
-                        // Iterating through samples that match the found silence
-                        //
-                        for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
-                        {
-                            int a = in_a->second.first;
-                            //------------------------------------------------------------
-                            // Check if it exists in our work array
-                            //
-                            for (list<workitm>::iterator w = work.begin(); w != work.end();) {
-                                if (b - w->b > MAXSTEPS) {
-                                    work.erase(w); w = work.begin(); continue;
-                                }
-                                if (b == w->b || a - w->a > MAXSTEPS || w->a >= a) { w++; continue; }
-                                // ------------------------------------------------------------
-                                // We fit the "region" here. We either finished,
-                                // or just increasing len
-                                //
-                                w->a = a; w->b = b;
-                                w->trace.push_back(pair<int,int>(a,b));
-                                if (++(w->len) < MATCHME) { // Proceeding with the "thread"
-                                    used_a.insert(a);
-                                    //printf ("Thread expanded to %d\n", w->len);
-                                } else { // This means the treshold is reached
-                                    // This hack is needed to pass pointer to an instance o_O
-                                    its_over(&(*w));
-                                }
-                                w++;
-                                // End of work iteration array
-                            }
-
-                            if (used_a.find(a) == used_a.end()) {
-                                work.push_back(workitm(a,b));
-                            }
-                        }
-                    }
-                    // Looking for another silence
-                    found_s = 0;
-                }
-                head++;
-            }
-        }
+        dump_values(an, do_checking);
         printf("NOT FOUND\n");
     }
     exit(0);
+}
+
+// --------------------------------------------------------------------------------
+// This gets called every time there is a treshold found.
+// Work array is global
+//
+// int b - index of silence found
+// double noop - place of silence from the stream start
+// double sec - length of a found silence
+//
+void do_checking (int r, double noop, double sec, int b) {
+
+    pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
+
+    //------------------------------------------------------------
+    // We put a indexes here that we use for continued threads
+    // (we don't want to create a new "thread" with already
+    // used length of a silence)
+    //
+    set<int> used_a; 
+
+    //------------------------------------------------------------
+    // Iterating through samples that match the found silence
+    //
+    for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
+    {
+        ///cout << in_a->first.first, in_a->first.second.tm << endl;
+        //printf("%d %.6f matches %.6f (%d)\n", in_a->first.first, sec, in_a->first.second.tm, in_a->second.c);
+        int a = in_a->second.c;
+        //------------------------------------------------------------
+        // Check if it exists in our work array
+        //
+        for (list<workitm>::iterator w = work.begin(); w != work.end();) {
+            if (b - w->b > round(cfg["maxsteps"])) {
+                work.erase(w); w = work.begin(); continue;
+            }
+            if (b == w->b || a - w->a > round(cfg["maxsteps"]) || w->a >= a) { w++; continue; }
+            // ------------------------------------------------------------
+            // We fit the "region" here. We either finished,
+            // or just increasing len
+            //
+            w->a = a; w->b = b;
+            w->trace.push_back(pair<int,int>(a,b));
+            if (++(w->len) < round(cfg["matchme"])) { // Proceeding with the "thread"
+                used_a.insert(a);
+                //printf ("Thread expanded to %d\n", w->len);
+            } else { // This means the treshold is reached
+                // This hack is needed to pass pointer to an instance o_O
+                its_over(&(*w));
+            }
+            w++;
+            // End of work iteration array
+        }
+        if (used_a.find(a) == used_a.end()) {
+            work.push_back(workitm(a,b));
+            //printf ("Pushed back %d %d\n", a,b);
+        }
+    }
+    //printf("\n");
 }
 
 void read_cfg (const char * filename) {
@@ -254,17 +247,37 @@ void read_cfg (const char * filename) {
         getline(file, line);
         x = line.find(":");
         if (x == -1) break; // Last line, exit
-
-		istringstream i(line.substr(x+2));
-		double tmp;
-		i >> tmp;
+        istringstream i(line.substr(x+2));
+        double tmp; i >> tmp;
         cfg[line.substr(0,x)] = tmp;
     }
-	// Change cfg["treshold\d+_(min|max)"] to
-	// something more compatible with CrapRange map
-	for(map<string, double>::iterator C = cfg.start(); C != cfg.end(); cfg++) {
-		printf("treshold1_ found in %d\n", C->first.find("treshold1_"));
-	}
+    // Change cfg["treshold\d+_(min|max)"] to
+    // something more compatible with CrapRange map
+    CrapRange tmp;
+    tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
+    ranges.assign(cfg.size(), tmp); // Make a bit more then nescesarry
+    int max_index = 0; // Number of different tresholds
+    for(map<string, double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
+        // Failed to use boost::regex :(
+        if (C->first.find("treshold") == 0) {
+            istringstream tmp(C->first.substr(8));
+            int i; tmp >> i;
+            max_index = max(max_index, i);
+            if (C->first.find("_min") != -1) {
+                ranges[i].min = (int)(C->second*(1<<15));
+            } else {
+                ranges[i].max = (int)(C->second*(1<<15));
+            }
+        }
+    }
+    ranges.assign(ranges.begin(), ranges.begin()+max_index+1); // Because [start,end), but we need all
+
+    /*
+    for(map<string,double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
+        printf("%s: %.6f\n", C->first.c_str(), C->second);
+    }
+    */
+
 }
 
 FILE * process_headers(const char * infile) {
@@ -292,8 +305,8 @@ FILE * process_headers(const char * infile) {
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
-    WAVE = SAMPLE_RATE/MINWAVEFREQ;
-    CHUNKSIZE = CHUNKLEN*SAMPLE_RATE;
+    WAVE = SAMPLE_RATE/cfg["minwavefreq"];
+    CHUNKSIZE = cfg["chunklen"]*SAMPLE_RATE;
     fseek(in, 0x24, 0);
     fread(header, 1, 4, in);
     strcpy(sample, "data");
@@ -320,25 +333,10 @@ void fatal (const char * msg) { // Print error message and exit
     exit (1);
 }
 
-void dump_values(FILE * in, void (*callback)(int, double, double)) {
-    istringstream i(cfg["treshold1"]);
-    // ------------------------------------------------------------
-    // This "15" means we have 16 bits for signed, this means
-    // 15 bits for unsigned int.
+void dump_values(FILE * in, void (*callback)(int, double, double, int)) {
 
-    // FIX THESE depending on bitrate!!
-    vector<CrapRange> ranges;
-    CrapRange tmp;
-
-    tmp.tail = tmp.min = tmp.proc = tmp.head = 0;
-    tmp.max = (int)(1<<15)*0.2;
-    ranges.push_back(tmp);
-
-    tmp.min = (int)(1<<15)*0.8; tmp.max = (int)(1<<15)*1;
-    ranges.push_back(tmp);
-
-    //exit(1);
-    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
+    int counter = 0;
+    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
     for (int i = 0; !feof(in);) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
         for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; i++, j++) {
@@ -367,7 +365,7 @@ void dump_values(FILE * in, void (*callback)(int, double, double)) {
                             // ------------------------------------------------------------
                             // The previous chunk is big enough to be noticed
                             //
-                            callback(r, (double)R->tail/SAMPLE_RATE, (double)(R->head - R->tail)/SAMPLE_RATE);
+                            callback(r, (double)R->tail/SAMPLE_RATE, (double)(R->head - R->tail)/SAMPLE_RATE, counter++);
                         } 
                         // ------------------------------------------------------------
                         // Else it is too small, but we don't want to do anything in that case
@@ -380,3 +378,27 @@ void dump_values(FILE * in, void (*callback)(int, double, double)) {
         }
     }
 }
+
+vector<string> explode(const string &delimiter, const string &str) // Found somewhere on NET
+{
+    vector<string> arr;
+    int strleng = str.length();
+    int delleng = delimiter.length();
+    if (delleng == 0)
+        return arr; //no change
+    int i = 0, k = 0;
+    while (i < strleng) {
+        int j = 0;
+        while (i+j < strleng && j < delleng && str[i+j] == delimiter[j])
+            j++;
+        if (j == delleng) {
+            arr.push_back(str.substr(k, i-k));
+            i += delleng;
+            k = i;
+        } else {
+            i++;
+        }
+    }
+    arr.push_back(str.substr(k, i-k));
+    return arr;
+};
