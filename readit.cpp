@@ -40,7 +40,7 @@ using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void dump_values(FILE * in, void (*callback)(int, double, double, int));
+void dump_values(FILE * in, void (*callback)(int, double, double, int), double timeout);
 void read_periods(const char*);
 void do_checking (int, double, double, int);
 void read_cfg(const char*);
@@ -91,8 +91,8 @@ workitm::workitm(const int a, const int b) {
     trace.push_back(pair<int,int>(a,b));
 };
 
-void its_over(workitm * w) {
-    printf("FOUND\n");
+void its_over(workitm * w, double place) {
+    printf("FOUND, processed %.6f sec\n", place);
     /*
        printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
        for (list<pair<int,int> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
@@ -126,7 +126,7 @@ int main (int argc, char *argv[]) {
     //
     if (argc == 3) {
         FILE * in = process_headers(argv[2]);
-        dump_values(in, dump_out);
+        dump_values(in, dump_out, cfg["sampletimeout"]);
     }
     // ------------------------------------------------------------
     // We have values file and a new samplefile. Let's rock
@@ -173,7 +173,7 @@ int main (int argc, char *argv[]) {
         // ------------------------------------------------------------
         // Print vals<r Range, int number>
         //
-        dump_values(an, do_checking);
+        dump_values(an, do_checking, cfg["catchtimeout"]);
         printf("NOT FOUND\n");
     }
     exit(0);
@@ -184,13 +184,29 @@ int main (int argc, char *argv[]) {
 // Work array is global
 //
 // int b - index of silence found
-// double noop - place of silence from the stream start
+// double place - place of silence from the stream start
 // double sec - length of a found silence
 //
-void do_checking (int r, double noop, double sec, int b) {
+bool mygreater(pair<int,Range> a, pair<int,Range> b) {
+    //return (a.first < b.first && a.second < b.second);
+    if (a.first < b.first) {
+        return a.second < b.second;
+    }
+    return false;
+}
+void do_checking (int r, double place, double sec, int b) {
 
-    pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
+    //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
+    // Manually searching for matching values because with that pairs equal_range doesnt work
+    // Let's iterate through pa
 
+    tvals fina; // FoundInA
+    Range demorange(sec);
+    pair<int,Range> sample(r,demorange);
+    for (tvals::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
+        if (it1->first == sample)
+            fina.insert(*it1);
+    }
     //------------------------------------------------------------
     // We put a indexes here that we use for continued threads
     // (we don't want to create a new "thread" with already
@@ -201,9 +217,9 @@ void do_checking (int r, double noop, double sec, int b) {
     //------------------------------------------------------------
     // Iterating through samples that match the found silence
     //
-    for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
+    for (tvals::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
+    //for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
     {
-        ///cout << in_a->first.first, in_a->first.second.tm << endl;
         //printf("%d %.6f matches %.6f (%d)\n", in_a->first.first, sec, in_a->first.second.tm, in_a->second.c);
         int a = in_a->second.c;
         //------------------------------------------------------------
@@ -225,7 +241,7 @@ void do_checking (int r, double noop, double sec, int b) {
                 //printf ("Thread expanded to %d\n", w->len);
             } else { // This means the treshold is reached
                 // This hack is needed to pass pointer to an instance o_O
-                its_over(&(*w));
+                its_over(&(*w), place+sec);
             }
             w++;
             // End of work iteration array
@@ -305,7 +321,7 @@ FILE * process_headers(const char * infile) {
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
-    WAVE = SAMPLE_RATE/cfg["minwavefreq"];
+    WAVE = SAMPLE_RATE*cfg["minwavelen"];
     CHUNKSIZE = cfg["chunklen"]*SAMPLE_RATE;
     fseek(in, 0x24, 0);
     fread(header, 1, 4, in);
@@ -333,12 +349,15 @@ void fatal (const char * msg) { // Print error message and exit
     exit (1);
 }
 
-void dump_values(FILE * in, void (*callback)(int, double, double, int)) {
+void dump_values(FILE * in, void (*callback)(int, double, double, int), double timeout) {
 
     int counter = 0;
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
     for (int i = 0; !feof(in);) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
+        if (i/SAMPLE_RATE > timeout) {
+            break;
+        }
         for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; i++, j++) {
             int cur = abs(buf[j]);
 
