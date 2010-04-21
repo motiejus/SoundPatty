@@ -40,9 +40,9 @@ using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void dump_values(FILE * in, void (*callback)(int, double, double, int), double timeout);
+void dump_values(FILE * in, void (*callback)(int, float, float, int), float timeout);
 void read_periods(const char*);
-void do_checking (int, double, double, int);
+void do_checking (int, float, float, int);
 void read_cfg(const char*);
 void fatal (const char* );
 vector<string> explode(const string&, const string&); // Found somewhere on NET
@@ -53,22 +53,22 @@ int SAMPLE_RATE,    //
     CHUNKSIZE,      // CHUNKLEN*SAMPLE_RATE
     DATA_SIZE;      // Data chunk size in bytes
 
-map<string, double> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
+map<string, float> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
 
 class Range {
     public:
         Range() { tm = tmin = tmax = 0; };
-        Range(const double & a) { tm = a; tmin = a * 0.9; tmax = a * 1.1; }
-        Range(const double & tmin, const double &tm, const double &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
-        Range(const double & tmin, const double &tmax) { this->tmin = tmin; this->tmax = tmax; }
-        Range operator = (const double i) { return Range(i); }
-        bool operator == (const double & i) const { return tmin < i && i < tmax; }
+        Range(const float & a) { tm = a; tmin = a * 0.9; tmax = a * 1.1; }
+        Range(const float & tmin, const float &tm, const float &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
+        Range(const float & tmin, const float &tmax) { this->tmin = tmin; this->tmax = tmax; }
+        Range operator = (const float i) { return Range(i); }
+        bool operator == (const float & i) const { return tmin < i && i < tmax; }
         bool operator == (const Range & r) const { return r == tm; }
-        bool operator > (const double & i) const { return i > tmax; }
+        bool operator > (const float & i) const { return i > tmax; }
         bool operator > (const Range & r) const { return r > tm; }
-        bool operator < (const double & i) const { return i < tmin; }
+        bool operator < (const float & i) const { return i < tmin; }
         bool operator < (const Range & r) const { return r < tm; }
-        double tmin, tm, tmax;
+        float tmin, tm, tmax;
 };
 
 struct CrapRange {
@@ -91,7 +91,7 @@ workitm::workitm(const int a, const int b) {
     trace.push_back(pair<int,int>(a,b));
 };
 
-void its_over(workitm * w, double place) {
+void its_over(workitm * w, float place) {
     printf("FOUND, processed %.6f sec\n", place);
     /*
        printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
@@ -104,13 +104,13 @@ void its_over(workitm * w, double place) {
 
 struct valsitm {
     int c; // Counter in map
-    double place;
+    float place;
 };
 typedef multimap<pair<int, Range>, valsitm> tvals;
 tvals vals;
 list<workitm> work;
 
-void dump_out(int w, double place, double len, int noop) {
+void dump_out(int w, float place, float len, int noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
 }
 
@@ -144,7 +144,7 @@ int main (int argc, char *argv[]) {
             istringstream place(numbers[1]);
             istringstream range(numbers[2]);
 
-            double tmp2;
+            float tmp2;
             pair<pair<int, Range>,valsitm > tmp;
             num >> tmp2; tmp.first.first = tmp2; // Index in ranges
             range >> tmp2; tmp.first.second = Range(tmp2);
@@ -164,7 +164,7 @@ int main (int argc, char *argv[]) {
         // Trying to match in only first 15 seconds of the record
 
         short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-        double treshold1 = cfg["treshold1"];
+        float treshold1 = cfg["treshold1"];
         int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
             found_s = 0,
             b = -1, // This is the found silence counter (starting with zero)
@@ -184,8 +184,8 @@ int main (int argc, char *argv[]) {
 // Work array is global
 //
 // int b - index of silence found
-// double place - place of silence from the stream start
-// double sec - length of a found silence
+// float place - place of silence from the stream start
+// float sec - length of a found silence
 //
 bool mygreater(pair<int,Range> a, pair<int,Range> b) {
     //return (a.first < b.first && a.second < b.second);
@@ -194,9 +194,9 @@ bool mygreater(pair<int,Range> a, pair<int,Range> b) {
     }
     return false;
 }
-void do_checking (int r, double place, double sec, int b) {
+void do_checking (int r, float place, float sec, int b) {
 
-    //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
+    //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,float>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Let's iterate through pa
 
@@ -264,7 +264,7 @@ void read_cfg (const char * filename) {
         x = line.find(":");
         if (x == -1) break; // Last line, exit
         istringstream i(line.substr(x+2));
-        double tmp; i >> tmp;
+        float tmp; i >> tmp;
         cfg[line.substr(0,x)] = tmp;
     }
     // Change cfg["treshold\d+_(min|max)"] to
@@ -273,7 +273,7 @@ void read_cfg (const char * filename) {
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
     ranges.assign(cfg.size(), tmp); // Make a bit more then nescesarry
     int max_index = 0; // Number of different tresholds
-    for(map<string, double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
+    for(map<string, float>::iterator C = cfg.begin(); C != cfg.end(); C++) {
         // Failed to use boost::regex :(
         if (C->first.find("treshold") == 0) {
             istringstream tmp(C->first.substr(8));
@@ -289,7 +289,7 @@ void read_cfg (const char * filename) {
     ranges.assign(ranges.begin(), ranges.begin()+max_index+1); // Because [start,end), but we need all
 
     /*
-    for(map<string,double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
+    for(map<string,float>::iterator C = cfg.begin(); C != cfg.end(); C++) {
         printf("%s: %.6f\n", C->first.c_str(), C->second);
     }
     */
@@ -349,7 +349,7 @@ void fatal (const char * msg) { // Print error message and exit
     exit (1);
 }
 
-void dump_values(FILE * in, void (*callback)(int, double, double, int), double timeout) {
+void dump_values(FILE * in, void (*callback)(int, float, float, int), float timeout) {
 
     int counter = 0;
     short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
@@ -384,7 +384,7 @@ void dump_values(FILE * in, void (*callback)(int, double, double, int), double t
                             // ------------------------------------------------------------
                             // The previous chunk is big enough to be noticed
                             //
-                            callback(r, (double)R->tail/SAMPLE_RATE, (double)(R->head - R->tail)/SAMPLE_RATE, counter++);
+                            callback(r, (float)R->tail/SAMPLE_RATE, (float)(R->head - R->tail)/SAMPLE_RATE, counter++);
                         } 
                         // ------------------------------------------------------------
                         // Else it is too small, but we don't want to do anything in that case
