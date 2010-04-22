@@ -33,6 +33,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <jack/jack.h>
 
 #define BUFFERSIZE 1
 
@@ -40,7 +41,9 @@ using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void dump_values(FILE * in, void (*callback)(int, float, float, int), float timeout);
+void search_file_patterns(FILE * in, void (*callback)(int, float, float, int), float timeout);
+void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, 
+    void (*callback)(int, float, float, int), float timeout);
 void read_periods(const char*);
 void do_checking (int, float, float, int);
 void read_cfg(const char*);
@@ -58,7 +61,7 @@ map<string, float> cfg; // OK, ok... Is it possible to store any value but strin
 class Range {
     public:
         Range() { tm = tmin = tmax = 0; };
-        Range(const float & a) { tm = a; tmin = a * 0.9; tmax = a * 1.1; }
+        Range(const float & a) { tm = a; tmin = a * 0.89; tmax = a * 1.11; }
         Range(const float & tmin, const float &tm, const float &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
         Range(const float & tmin, const float &tmax) { this->tmin = tmin; this->tmax = tmax; }
         Range operator = (const float i) { return Range(i); }
@@ -109,6 +112,8 @@ struct valsitm {
 typedef multimap<pair<int, Range>, valsitm> tvals;
 tvals vals;
 list<workitm> work;
+int gMCounter = 0; // How many matches we found
+int gSCounter = 0; // How many samples we skipped
 
 void dump_out(int w, float place, float len, int noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
@@ -126,7 +131,7 @@ int main (int argc, char *argv[]) {
     //
     if (argc == 3) {
         FILE * in = process_headers(argv[2]);
-        dump_values(in, dump_out, cfg["sampletimeout"]);
+        search_file_patterns(in, dump_out, cfg["sampletimeout"]);
     }
     // ------------------------------------------------------------
     // We have values file and a new samplefile. Let's rock
@@ -163,7 +168,7 @@ int main (int argc, char *argv[]) {
         // We can read and analyze it now
         // Trying to match in only first 15 seconds of the record
 
-        short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
+        uint16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
         float treshold1 = cfg["treshold1"];
         int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
             found_s = 0,
@@ -173,7 +178,7 @@ int main (int argc, char *argv[]) {
         // ------------------------------------------------------------
         // Print vals<r Range, int number>
         //
-        dump_values(an, do_checking, cfg["catchtimeout"]);
+        search_file_patterns(an, do_checking, cfg["catchtimeout"]);
         printf("NOT FOUND\n");
     }
     exit(0);
@@ -187,13 +192,6 @@ int main (int argc, char *argv[]) {
 // float place - place of silence from the stream start
 // float sec - length of a found silence
 //
-bool mygreater(pair<int,Range> a, pair<int,Range> b) {
-    //return (a.first < b.first && a.second < b.second);
-    if (a.first < b.first) {
-        return a.second < b.second;
-    }
-    return false;
-}
 void do_checking (int r, float place, float sec, int b) {
 
     //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,float>(r,sec));
@@ -308,7 +306,7 @@ FILE * process_headers(const char * infile) {
         fatal ("RIFF header not found, exiting\n");
     }
     // Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
-    short int tmp[2]; // two-byte integer
+    uint16_t tmp[2]; // two-byte integer
     fseek(in, 0x14, 0); // offset = 20 bytes
     fread(&tmp, 2, 2, in); // Reading two two-byte samples (comp. code and no. of channels)
     if ( tmp[0] != 1 ) {
@@ -349,49 +347,57 @@ void fatal (const char * msg) { // Print error message and exit
     exit (1);
 }
 
-void dump_values(FILE * in, void (*callback)(int, float, float, int), float timeout) {
-
-    int counter = 0;
-    short int buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
-    for (int i = 0; !feof(in);) {
+void search_file_patterns(FILE * in, void (*callback)(int, float, float, int), float timeout) {
+    uint16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
+    while (!feof(in)) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
-        if (i/SAMPLE_RATE > timeout) {
-            break;
-        }
-        for (int j = 0; j < SAMPLE_RATE * BUFFERSIZE; i++, j++) {
-            int cur = abs(buf[j]);
 
-            int r = 0; // Counter for R
-            for (vector<CrapRange>::iterator R = ranges.begin(); R != ranges.end(); R++, r++) {
-                if (R->min <= cur && cur <= R->max) {
-                    // ------------------------------------------------------------
-                    // If it's first item in this wave (proc = processing started)
+        // :HACK: fix this, do not depend on jack types where you don't need!
+        jack_default_audio_sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
+        for(int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
+            buf2[i] = (jack_default_audio_sample_t)buf[i];
+        }
+        search_patterns(buf2, SAMPLE_RATE * BUFFERSIZE, callback, timeout);
+        if (gSCounter/SAMPLE_RATE > timeout) break;
+    }
+}
+
+void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, 
+    void (*callback)(int, float, float, int), float timeout) {
+
+    for (int j = 0; j < nframes; gSCounter++, j++) {
+        float cur = fabs(buf[j]);
+
+        int r = 0; // Counter for R
+        for (vector<CrapRange>::iterator R = ranges.begin(); R != ranges.end(); R++, r++) {
+            if (R->min <= cur && cur <= R->max) {
+                // ------------------------------------------------------------
+                // If it's first item in this wave (proc = processing started)
+                //
+                if (!R->proc) {
+                    R->tail = gSCounter;
+                    R->proc = true;
+                }
+                // ------------------------------------------------------------
+                // Here we are just normally in the wave.
+                //
+                R->head = gSCounter;
+            } else { // We are not in the wave
+                if (R->proc && (R->min == 0 || gSCounter - R->head > WAVE)) {
+                    //------------------------------------------------------------
+                    // This wave is over
                     //
-                    if (!R->proc) {
-                        R->tail = i;
-                        R->proc = true;
-                    }
-                    // ------------------------------------------------------------
-                    // Here we are just normally in the wave.
-                    //
-                    R->head = i;
-                } else { // We are not in the wave
-                    if (R->proc && (R->min == 0 || i - R->head > WAVE)) {
-                        //------------------------------------------------------------
-                        // This wave is over
-                        //
-                        if (i - R->tail >= CHUNKSIZE) {
-                            // ------------------------------------------------------------
-                            // The previous chunk is big enough to be noticed
-                            //
-                            callback(r, (float)R->tail/SAMPLE_RATE, (float)(R->head - R->tail)/SAMPLE_RATE, counter++);
-                        } 
+                    if (gSCounter - R->tail >= CHUNKSIZE) {
                         // ------------------------------------------------------------
-                        // Else it is too small, but we don't want to do anything in that case
-                        // So therefore we just say that wave processing is over
+                        // The previous chunk is big enough to be noticed
                         //
-                        R->proc = false;
-                    }
+                        callback(r, (float)R->tail/SAMPLE_RATE, (float)(R->head - R->tail)/SAMPLE_RATE, gMCounter++);
+                    } 
+                    // ------------------------------------------------------------
+                    // Else it is too small, but we don't want to do anything in that case
+                    // So therefore we just say that wave processing is over
+                    //
+                    R->proc = false;
                 }
             }
         }
