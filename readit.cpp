@@ -41,44 +41,48 @@ using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void search_file_patterns(FILE * in, void (*callback)(int, float, float, int), float timeout);
-void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, 
-    void (*callback)(int, float, float, int), float timeout);
+void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), double timeout);
+void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int));
 void read_periods(const char*);
-void do_checking (int, float, float, int);
-void read_cfg(const char*);
+void do_checking (int, double, double, int);
+void read_cfg(const char*, const int);
 void fatal (const char* );
+void fatal2(void * r);
+int jack_proc(jack_nframes_t nframes, void *arg);
 vector<string> explode(const string&, const string&); // Found somewhere on NET
 
 char errmsg[200];   // Temporary message
 int SAMPLE_RATE,    // 
+    timeout = 20,
     WAVE,           // SAMPLE_RATE*MINWAVEFREQ
     CHUNKSIZE,      // CHUNKLEN*SAMPLE_RATE
     DATA_SIZE;      // Data chunk size in bytes
 
-map<string, float> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
+map<string, double> cfg; // OK, ok... Is it possible to store any value but string (Rrrr...) here?
 
+// Length of patterns
 class Range {
     public:
         Range() { tm = tmin = tmax = 0; };
-        Range(const float & a) { tm = a; tmin = a * 0.89; tmax = a * 1.11; }
-        Range(const float & tmin, const float &tm, const float &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
-        Range(const float & tmin, const float &tmax) { this->tmin = tmin; this->tmax = tmax; }
-        Range operator = (const float i) { return Range(i); }
-        bool operator == (const float & i) const { return tmin < i && i < tmax; }
+        Range(const double & a) { tm = a; tmin = a * 0.89; tmax = a * 1.11; }
+        Range(const double & tmin, const double &tm, const double &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
+        Range(const double & tmin, const double &tmax) { this->tmin = tmin; this->tmax = tmax; }
+        Range operator = (const double i) { return Range(i); }
+        bool operator == (const double & i) const { return tmin < i && i < tmax; }
         bool operator == (const Range & r) const { return r == tm; }
-        bool operator > (const float & i) const { return i > tmax; }
+        bool operator > (const double & i) const { return i > tmax; }
         bool operator > (const Range & r) const { return r > tm; }
-        bool operator < (const float & i) const { return i < tmin; }
+        bool operator < (const double & i) const { return i < tmin; }
         bool operator < (const Range & r) const { return r < tm; }
-        float tmin, tm, tmax;
+        double tmin, tm, tmax;
 };
 
-struct CrapRange {
+// Volume (-1..1 or -2^15..2^15)
+struct sVolumes {
     int head, tail, min, max;
     bool proc;
 };
-vector<CrapRange> ranges;
+vector<sVolumes> volume;
 
 class workitm {
     public:
@@ -94,7 +98,7 @@ workitm::workitm(const int a, const int b) {
     trace.push_back(pair<int,int>(a,b));
 };
 
-void its_over(workitm * w, float place) {
+void its_over(workitm * w, double place) {
     printf("FOUND, processed %.6f sec\n", place);
     /*
        printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
@@ -107,37 +111,64 @@ void its_over(workitm * w, float place) {
 
 struct valsitm {
     int c; // Counter in map
-    float place;
+    double place;
 };
 typedef multimap<pair<int, Range>, valsitm> tvals;
 tvals vals;
 list<workitm> work;
 int gMCounter = 0; // How many matches we found
 int gSCounter = 0; // How many samples we skipped
+jack_port_t * input_port;
+jack_client_t *client;
 
-void dump_out(int w, float place, float len, int noop) {
+void dump_out(int w, double place, double len, int noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
+}
+
+
+void new_port(const jack_port_id_t port_id, int registerr, void *arg) {
+
+    jack_port_t * src_port = jack_port_by_id(client, port_id);
+
+    if (registerr) {
+        if (JackPortIsOutput & jack_port_flags(src_port)) {
+            printf("Connecting %s with %s\n", jack_port_name(src_port), jack_port_name(input_port));
+            char buffer[100];
+            sprintf(buffer, "jack_connect %s %s", jack_port_name(src_port), jack_port_name(input_port));
+            //system("jack_lsp -c");
+            printf("%s\n", buffer);
+            //system(buffer);
+            //if (jack_connect(client, jack_port_name(input_port), jack_port_name(src_port))) {
+                //printf("Failed to connect two ports!\n");
+            //}
+        }
+    }
 }
 
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
-        fatal ("Usage: ./readit config.cfg sample.wav\n\nor\n"
-                "./readit config.cfg samplefile.txt catchable.wav");
+        fatal ("Usage: ./readit config.cfg sample.wav\nor\n"
+                "./readit config.cfg samplefile.txt catchable.wav\n"
+                "./readit config.cfg samplefile.txt jack jack");
     }
-    read_cfg(argv[1]);
+    // Another :HACK: to write config values.
+    // If argc == 5, then we are running JACK,
+    // but JACK stores volume in signed float (-1..1).
+    // Else we are reading WAV, therefore values are (-2^15..2^15)
+    int multiply = (argc == 5)?1:(1<<15);
+    read_cfg(argv[1], multiply);
     // ------------------------------------------------------------
     // Only header given, we just dump out the silence values
     //
     if (argc == 3) {
         FILE * in = process_headers(argv[2]);
-        search_file_patterns(in, dump_out, cfg["sampletimeout"]);
+        search_wav_patterns(in, dump_out, cfg["sampletimeout"]);
     }
     // ------------------------------------------------------------
     // We have values file and a new samplefile. Let's rock
     //
-    else if (argc == 4) {
-
+    else if (argc == 4 || argc == 5) {
         ifstream file;
         file.open(argv[2]);
         string line;
@@ -149,14 +180,16 @@ int main (int argc, char *argv[]) {
             istringstream place(numbers[1]);
             istringstream range(numbers[2]);
 
-            float tmp2;
+            double tmp2;
             pair<pair<int, Range>,valsitm > tmp;
-            num >> tmp2; tmp.first.first = tmp2; // Index in ranges
+            num >> tmp2; tmp.first.first = tmp2; // Index in volume
             range >> tmp2; tmp.first.second = Range(tmp2);
             place >> tmp.second.place; // Place in the stream
             tmp.second.c = i; // Counter in the stream
             vals.insert(tmp);
         }
+    }
+    if (argc == 4) {
         // OK, we have it. Let's print?
         //for (vector<trange>::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
         //printf ("%.6f - %.6f\n", (*it1).first, (*it1).second);
@@ -169,7 +202,7 @@ int main (int argc, char *argv[]) {
         // Trying to match in only first 15 seconds of the record
 
         uint16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-        float treshold1 = cfg["treshold1"];
+        double treshold1 = cfg["treshold1"];
         int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
             found_s = 0,
             b = -1, // This is the found silence counter (starting with zero)
@@ -178,8 +211,31 @@ int main (int argc, char *argv[]) {
         // ------------------------------------------------------------
         // Print vals<r Range, int number>
         //
-        search_file_patterns(an, do_checking, cfg["catchtimeout"]);
+        search_wav_patterns(an, do_checking, cfg["catchtimeout"]);
         printf("NOT FOUND\n");
+    } else if (argc == 5) {
+        // Initialize jack
+        printf ("Starting JACK...\n");
+        if ((client = jack_client_new ("soundpatty")) == 0) {
+            fatal ("jack server not running?\n");
+        }
+
+        //jack_set_process_callback(client, jack_proc_tmp, (void*)"LabasRytas");
+        jack_set_process_callback(client, jack_proc, 0);
+
+        jack_on_shutdown(client, fatal2, (void*)"Jack server shut us down!");
+        if (jack_set_port_registration_callback(client, new_port, (void*)client)) {
+            printf("Setting client registration callback failed\n");
+        }
+
+        printf ("engine sample rate: %d\n", SAMPLE_RATE = jack_get_sample_rate (client));
+        input_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+        if (jack_activate (client)) {
+            fatal ("cannot activate client");
+        }
+        while (1) {
+            sleep (1);
+        }
     }
     exit(0);
 }
@@ -189,12 +245,12 @@ int main (int argc, char *argv[]) {
 // Work array is global
 //
 // int b - index of silence found
-// float place - place of silence from the stream start
-// float sec - length of a found silence
+// double place - place of silence from the stream start
+// double sec - length of a found silence
 //
-void do_checking (int r, float place, float sec, int b) {
+void do_checking (int r, double place, double sec, int b) {
 
-    //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,float>(r,sec));
+    //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Let's iterate through pa
 
@@ -252,7 +308,7 @@ void do_checking (int r, float place, float sec, int b) {
     //printf("\n");
 }
 
-void read_cfg (const char * filename) {
+void read_cfg (const char * filename, const int multiply) {
     ifstream file;
     file.open(filename);
     string line;
@@ -262,32 +318,33 @@ void read_cfg (const char * filename) {
         x = line.find(":");
         if (x == -1) break; // Last line, exit
         istringstream i(line.substr(x+2));
-        float tmp; i >> tmp;
+        double tmp; i >> tmp;
         cfg[line.substr(0,x)] = tmp;
     }
     // Change cfg["treshold\d+_(min|max)"] to
-    // something more compatible with CrapRange map
-    CrapRange tmp;
+    // something more compatible with sVolumes map
+    sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
-    ranges.assign(cfg.size(), tmp); // Make a bit more then nescesarry
+    volume.assign(cfg.size(), tmp); // Make a bit more then nescesarry
     int max_index = 0; // Number of different tresholds
-    for(map<string, float>::iterator C = cfg.begin(); C != cfg.end(); C++) {
+    for(map<string, double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
         // Failed to use boost::regex :(
         if (C->first.find("treshold") == 0) {
             istringstream tmp(C->first.substr(8));
             int i; tmp >> i;
             max_index = max(max_index, i);
+            // C->second and volume[i].m{in,ax} are double
             if (C->first.find("_min") != -1) {
-                ranges[i].min = (int)(C->second*(1<<15));
+                volume[i].min = C->second*multiply;
             } else {
-                ranges[i].max = (int)(C->second*(1<<15));
+                volume[i].max = C->second*multiply;
             }
         }
     }
-    ranges.assign(ranges.begin(), ranges.begin()+max_index+1); // Because [start,end), but we need all
+    volume.assign(volume.begin(), volume.begin()+max_index+1); // Because [start,end), but we need all
 
     /*
-    for(map<string,float>::iterator C = cfg.begin(); C != cfg.end(); C++) {
+    for(map<string,double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
         printf("%s: %.6f\n", C->first.c_str(), C->second);
     }
     */
@@ -346,8 +403,19 @@ void fatal (const char * msg) { // Print error message and exit
     perror (msg);
     exit (1);
 }
+void fatal2(void * r) {
+    char * msg = (char*) r;
+    perror(msg);
+}
 
-void search_file_patterns(FILE * in, void (*callback)(int, float, float, int), float timeout) {
+int jack_proc(jack_nframes_t nframes, void *arg) {
+    jack_default_audio_sample_t *in = (jack_default_audio_sample_t *) jack_port_get_buffer (input_port, nframes);
+    search_patterns(in, nframes, do_checking);
+    //if (gSCounter/SAMPLE_RATE > timeout) printf("It's over!\n"); // It's over, deregister client somewhen
+    return 0;
+}
+
+void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), double timeout) {
     uint16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
     while (!feof(in)) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
@@ -357,47 +425,45 @@ void search_file_patterns(FILE * in, void (*callback)(int, float, float, int), f
         for(int i = 0; i < SAMPLE_RATE * BUFFERSIZE; i++) {
             buf2[i] = (jack_default_audio_sample_t)buf[i];
         }
-        search_patterns(buf2, SAMPLE_RATE * BUFFERSIZE, callback, timeout);
+        search_patterns(buf2, SAMPLE_RATE * BUFFERSIZE, callback);
         if (gSCounter/SAMPLE_RATE > timeout) break;
     }
 }
 
-void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, 
-    void (*callback)(int, float, float, int), float timeout) {
-
+void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int)) {
     for (int j = 0; j < nframes; gSCounter++, j++) {
-        float cur = fabs(buf[j]);
+        jack_default_audio_sample_t cur = fabs(buf[j]);
 
-        int r = 0; // Counter for R
-        for (vector<CrapRange>::iterator R = ranges.begin(); R != ranges.end(); R++, r++) {
-            if (R->min <= cur && cur <= R->max) {
+        int v = 0; // Counter for volume
+        for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
+            if (V->min <= cur && cur <= V->max) {
                 // ------------------------------------------------------------
                 // If it's first item in this wave (proc = processing started)
                 //
-                if (!R->proc) {
-                    R->tail = gSCounter;
-                    R->proc = true;
+                if (!V->proc) {
+                    V->tail = gSCounter;
+                    V->proc = true;
                 }
                 // ------------------------------------------------------------
                 // Here we are just normally in the wave.
                 //
-                R->head = gSCounter;
+                V->head = gSCounter;
             } else { // We are not in the wave
-                if (R->proc && (R->min == 0 || gSCounter - R->head > WAVE)) {
+                if (V->proc && (V->min == 0 || gSCounter - V->head > WAVE)) {
                     //------------------------------------------------------------
                     // This wave is over
                     //
-                    if (gSCounter - R->tail >= CHUNKSIZE) {
+                    if (gSCounter - V->tail >= CHUNKSIZE) {
                         // ------------------------------------------------------------
                         // The previous chunk is big enough to be noticed
                         //
-                        callback(r, (float)R->tail/SAMPLE_RATE, (float)(R->head - R->tail)/SAMPLE_RATE, gMCounter++);
+                        callback(v, (double)V->tail/SAMPLE_RATE, (double)(V->head - V->tail)/SAMPLE_RATE, gMCounter++);
                     } 
                     // ------------------------------------------------------------
                     // Else it is too small, but we don't want to do anything in that case
                     // So therefore we just say that wave processing is over
                     //
-                    R->proc = false;
+                    V->proc = false;
                 }
             }
         }
