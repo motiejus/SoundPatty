@@ -45,7 +45,7 @@ void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), 
 void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int));
 void read_periods(const char*);
 void do_checking (int, double, double, int);
-void read_cfg(const char*, const int);
+void read_cfg(const char*, const int, const int);
 void fatal (const char* );
 void fatal2(void * r);
 int jack_proc(jack_nframes_t nframes, void *arg);
@@ -77,9 +77,10 @@ class Range {
         double tmin, tm, tmax;
 };
 
-// Volume (-1..1 or -2^15..2^15)
+// Volume (-1..1 or 0..2^16)
 struct sVolumes {
-    int head, tail, min, max;
+    int head, tail;
+	jack_default_audio_sample_t min, max;
     bool proc;
 };
 vector<sVolumes> volume;
@@ -116,28 +117,24 @@ struct valsitm {
 typedef multimap<pair<int, Range>, valsitm> tvals;
 tvals vals;
 list<workitm> work;
-int gMCounter = 0; // How many matches we found
-int gSCounter = 0; // How many samples we skipped
+long gMCounter = 0; // How many matches we found
+long gSCounter = 0; // How many samples we skipped
 jack_port_t * input_port;
-jack_client_t *client;
+jack_client_t * client;
+jack_default_audio_sample_t zero; // Sample below this value is considered zero
 
 void dump_out(int w, double place, double len, int noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
 }
 
-
 void new_port(const jack_port_id_t port_id, int registerr, void *arg) {
-
     jack_port_t * src_port = jack_port_by_id(client, port_id);
-
     if (registerr) {
         if (JackPortIsOutput & jack_port_flags(src_port)) {
             printf("Connecting %s with %s\n", jack_port_name(src_port), jack_port_name(input_port));
-            char buffer[100];
-            sprintf(buffer, "jack_connect %s %s", jack_port_name(src_port), jack_port_name(input_port));
-            //system("jack_lsp -c");
-            printf("%s\n", buffer);
-            //system(buffer);
+			char buffer[200];
+            sprintf(buffer, "sleep 0.5 && jack_connect %s %s &", jack_port_name(src_port), jack_port_name(input_port));
+            system(buffer);
             //if (jack_connect(client, jack_port_name(input_port), jack_port_name(src_port))) {
                 //printf("Failed to connect two ports!\n");
             //}
@@ -155,9 +152,11 @@ int main (int argc, char *argv[]) {
     // Another :HACK: to write config values.
     // If argc == 5, then we are running JACK,
     // but JACK stores volume in signed float (-1..1).
-    // Else we are reading WAV, therefore values are (-2^15..2^15)
-    int multiply = (argc == 5)?1:(1<<15);
-    read_cfg(argv[1], multiply);
+    // Else we are reading WAV, therefore values are (0..2^16)
+    int multiply = (argc == 5)?2:(1<<15);
+    int minus = (argc == 5)?1:0; // Foruma: real_x = i * multiply - minus;
+
+    read_cfg(argv[1], multiply, minus);
     // ------------------------------------------------------------
     // Only header given, we just dump out the silence values
     //
@@ -220,7 +219,6 @@ int main (int argc, char *argv[]) {
             fatal ("jack server not running?\n");
         }
 
-        //jack_set_process_callback(client, jack_proc_tmp, (void*)"LabasRytas");
         jack_set_process_callback(client, jack_proc, 0);
 
         jack_on_shutdown(client, fatal2, (void*)"Jack server shut us down!");
@@ -229,6 +227,8 @@ int main (int argc, char *argv[]) {
         }
 
         printf ("engine sample rate: %d\n", SAMPLE_RATE = jack_get_sample_rate (client));
+		WAVE = (int)SAMPLE_RATE*cfg["minwavelen"];
+		CHUNKSIZE = cfg["chunklen"]*SAMPLE_RATE;
         input_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
         if (jack_activate (client)) {
             fatal ("cannot activate client");
@@ -308,7 +308,7 @@ void do_checking (int r, double place, double sec, int b) {
     //printf("\n");
 }
 
-void read_cfg (const char * filename, const int multiply) {
+void read_cfg (const char * filename, const int multiply, const int minus) {
     ifstream file;
     file.open(filename);
     string line;
@@ -335,20 +335,20 @@ void read_cfg (const char * filename, const int multiply) {
             max_index = max(max_index, i);
             // C->second and volume[i].m{in,ax} are double
             if (C->first.find("_min") != -1) {
-                volume[i].min = C->second*multiply;
+                volume[i].min = C->second*multiply - minus;
             } else {
-                volume[i].max = C->second*multiply;
+                volume[i].max = C->second*multiply - minus;
             }
         }
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1); // Because [start,end), but we need all
 
-    /*
-    for(map<string,double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
-        printf("%s: %.6f\n", C->first.c_str(), C->second);
-    }
-    */
-
+	zero = 0.001 - minus;
+	printf("zero: %.6f\n", zero);
+	int v = 0;
+	for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
+		printf("#%d: Min: %.6f, max: %.6f\n", v, V->min, V->max);
+	}
 }
 
 FILE * process_headers(const char * infile) {
@@ -376,7 +376,7 @@ FILE * process_headers(const char * infile) {
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
-    WAVE = SAMPLE_RATE*cfg["minwavelen"];
+    WAVE = (int)SAMPLE_RATE*cfg["minwavelen"];
     CHUNKSIZE = cfg["chunklen"]*SAMPLE_RATE;
     fseek(in, 0x24, 0);
     fread(header, 1, 4, in);
@@ -410,8 +410,10 @@ void fatal2(void * r) {
 
 int jack_proc(jack_nframes_t nframes, void *arg) {
     jack_default_audio_sample_t *in = (jack_default_audio_sample_t *) jack_port_get_buffer (input_port, nframes);
-    search_patterns(in, nframes, do_checking);
+
+    //search_patterns(in, nframes, do_checking);
     //if (gSCounter/SAMPLE_RATE > timeout) printf("It's over!\n"); // It's over, deregister client somewhen
+    search_patterns(in, nframes, dump_out);
     return 0;
 }
 
@@ -431,8 +433,17 @@ void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), 
 }
 
 void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int)) {
-    for (int j = 0; j < nframes; gSCounter++, j++) {
-        jack_default_audio_sample_t cur = fabs(buf[j]);
+
+	jack_default_audio_sample_t mini = 2, maxi = -2;
+	for (int i = 0; i < nframes; i++) {
+		//jack_default_audio_sample_t cur = in[i]<0? 0-in[i] : in[i];
+		mini = min(mini, buf[i]);
+		maxi = max(maxi, buf[i]);
+	}
+	//printf("Min value: %.6f, max value: %.6f, value in the middle: %.6f\n", mini, maxi, buf[(int)round(nframes/2)]);
+
+    for (int i = 0; i < nframes; gSCounter++, i++) {
+        jack_default_audio_sample_t cur = buf[i];
 
         int v = 0; // Counter for volume
         for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
@@ -449,7 +460,8 @@ void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes,
                 //
                 V->head = gSCounter;
             } else { // We are not in the wave
-                if (V->proc && (V->min == 0 || gSCounter - V->head > WAVE)) {
+                if (V->proc && (V->min < zero || gSCounter - V->head > WAVE)) {
+
                     //------------------------------------------------------------
                     // This wave is over
                     //
