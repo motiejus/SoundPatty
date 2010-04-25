@@ -45,7 +45,7 @@ void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), 
 void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int));
 void read_periods(const char*);
 void do_checking (int, double, double, int);
-void read_cfg(const char*, const int, const int);
+void read_cfg(const char*, const int);
 void fatal (const char* );
 void fatal2(void * r);
 int jack_proc(jack_nframes_t nframes, void *arg);
@@ -77,7 +77,8 @@ class Range {
         double tmin, tm, tmax;
 };
 
-// Volume (-1..1 or 0..2^16)
+
+// Volume (-1..1 or -2^15..2^15)
 struct sVolumes {
     int head, tail;
 	jack_default_audio_sample_t min, max;
@@ -121,7 +122,6 @@ long gMCounter = 0; // How many matches we found
 long gSCounter = 0; // How many samples we skipped
 jack_port_t * input_port;
 jack_client_t * client;
-jack_default_audio_sample_t zero; // Sample below this value is considered zero
 
 void dump_out(int w, double place, double len, int noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
@@ -152,11 +152,10 @@ int main (int argc, char *argv[]) {
     // Another :HACK: to write config values.
     // If argc == 5, then we are running JACK,
     // but JACK stores volume in signed float (-1..1).
-    // Else we are reading WAV, therefore values are (0..2^16)
-    int multiply = (argc == 5)?2:(1<<15);
-    int minus = (argc == 5)?1:0; // Foruma: real_x = i * multiply - minus;
+    // Else we are reading WAV, therefore values are (-2^15..2^15)
+    int multiply = (argc == 5)?1:(1<<15);
 
-    read_cfg(argv[1], multiply, minus);
+    read_cfg(argv[1], multiply);
     // ------------------------------------------------------------
     // Only header given, we just dump out the silence values
     //
@@ -197,21 +196,9 @@ int main (int argc, char *argv[]) {
         // Let's work with the seconds sample like with a stream
         //
         FILE * an = process_headers(argv[3]);
-        // We can read and analyze it now
-        // Trying to match in only first 15 seconds of the record
-
-        uint16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every second
-        double treshold1 = cfg["treshold1"];
-        int min_silence = (int)((1 << 15) * treshold1), // Below this value we have "silence, pshhh..."
-            found_s = 0,
-            b = -1, // This is the found silence counter (starting with zero)
-            head = 0;
-
-        // ------------------------------------------------------------
-        // Print vals<r Range, int number>
-        //
         search_wav_patterns(an, do_checking, cfg["catchtimeout"]);
         printf("NOT FOUND\n");
+
     } else if (argc == 5) {
         // Initialize jack
         printf ("Starting JACK...\n");
@@ -308,7 +295,7 @@ void do_checking (int r, double place, double sec, int b) {
     //printf("\n");
 }
 
-void read_cfg (const char * filename, const int multiply, const int minus) {
+void read_cfg (const char * filename, const int multiply) {
     ifstream file;
     file.open(filename);
     string line;
@@ -335,19 +322,17 @@ void read_cfg (const char * filename, const int multiply, const int minus) {
             max_index = max(max_index, i);
             // C->second and volume[i].m{in,ax} are double
             if (C->first.find("_min") != -1) {
-                volume[i].min = C->second*multiply - minus;
+                volume[i].min = C->second*multiply;
             } else {
-                volume[i].max = C->second*multiply - minus;
+                volume[i].max = C->second*multiply;
             }
         }
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1); // Because [start,end), but we need all
 
-	zero = 0.001 - minus;
-	printf("zero: %.6f\n", zero);
 	int v = 0;
 	for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
-		printf("#%d: Min: %.6f, max: %.6f\n", v, V->min, V->max);
+		//printf("#%d: Min: %.6f, max: %.6f\n", v, V->min, V->max);
 	}
 }
 
@@ -411,14 +396,13 @@ void fatal2(void * r) {
 int jack_proc(jack_nframes_t nframes, void *arg) {
     jack_default_audio_sample_t *in = (jack_default_audio_sample_t *) jack_port_get_buffer (input_port, nframes);
 
-    //search_patterns(in, nframes, do_checking);
+    search_patterns(in, nframes, do_checking);
     //if (gSCounter/SAMPLE_RATE > timeout) printf("It's over!\n"); // It's over, deregister client somewhen
-    search_patterns(in, nframes, dump_out);
     return 0;
 }
 
 void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), double timeout) {
-    uint16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
+    int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
     while (!feof(in)) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
 
@@ -443,7 +427,8 @@ void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes,
 	//printf("Min value: %.6f, max value: %.6f, value in the middle: %.6f\n", mini, maxi, buf[(int)round(nframes/2)]);
 
     for (int i = 0; i < nframes; gSCounter++, i++) {
-        jack_default_audio_sample_t cur = buf[i];
+        jack_default_audio_sample_t cur = buf[i]>0?buf[i]:-buf[i];
+		//printf("%.6f\n", cur);
 
         int v = 0; // Counter for volume
         for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
@@ -460,7 +445,8 @@ void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes,
                 //
                 V->head = gSCounter;
             } else { // We are not in the wave
-                if (V->proc && (V->min < zero || gSCounter - V->head > WAVE)) {
+				//printf("V->min: %.6f\n", V->min);
+                if (V->proc && (V->min < 0.001 || gSCounter - V->head > WAVE)) {
 
                     //------------------------------------------------------------
                     // This wave is over
