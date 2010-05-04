@@ -332,7 +332,8 @@ FILE * process_headers(const char * infile) {
 
     char sample[] = "RIFF";
     if (! check_sample(sample, header) ) {
-        fatal ("RIFF header not found, exiting\n");
+        sprintf(errmsg, "RIFF header not found in %s, exiting\n", infile);
+		fatal(errmsg);
     }
     // Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
     uint16_t tmp[2]; // two-byte integer
