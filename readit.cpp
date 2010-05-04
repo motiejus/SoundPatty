@@ -41,10 +41,10 @@ using namespace std;
 
 FILE * process_headers(const char*);
 bool check_sample(const char*, const char*);
-void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), double timeout);
-void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int));
+void search_wav_patterns(FILE * in, void (*callback)(int, double, double, unsigned long), double timeout);
+void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, unsigned long));
 void read_periods(const char*);
-void do_checking (int, double, double, int);
+void do_checking (int, double, double, unsigned long);
 void read_cfg(const char*, const int);
 void fatal (const char* );
 void fatal2(void * r);
@@ -53,7 +53,6 @@ vector<string> explode(const string&, const string&); // Found somewhere on NET
 
 char errmsg[200];   // Temporary message
 int SAMPLE_RATE,    // 
-    timeout = 20,
     WAVE,           // SAMPLE_RATE*MINWAVEFREQ
     CHUNKSIZE,      // CHUNKLEN*SAMPLE_RATE
     DATA_SIZE;      // Data chunk size in bytes
@@ -88,23 +87,24 @@ vector<sVolumes> volume;
 
 class workitm {
     public:
-        int len,a,b;
-        workitm(int, int);
-        int ami(int, int);
-        list<pair<int, int> > trace;
+        int len,a;
+        unsigned long b;
+
+        workitm(int, unsigned long);
+        list<pair<int, unsigned long> > trace;
 };
 
-workitm::workitm(const int a, const int b) {
+workitm::workitm(const int a, const unsigned long b) {
     this->a = a; this->b = b;
     len = 0;
-    trace.push_back(pair<int,int>(a,b));
+    trace.push_back(pair<int,unsigned long>(a,b));
 };
 
 void its_over(workitm * w, double place) {
     printf("FOUND, processed %.6f sec\n", place);
     /*
        printf("Found a matching pattern! Length: %d, here comes the trace:\n", (int)w->trace.size());
-       for (list<pair<int,int> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
+       for (list<pair<int,unsigned long> >::iterator tr = w->trace.begin(); tr != w->trace.end(); tr++) {
        printf("%d %d\n", tr->first, tr->second);
        }
      */
@@ -115,31 +115,17 @@ struct valsitm {
     int c; // Counter in map
     double place;
 };
+
 typedef multimap<pair<int, Range>, valsitm> tvals;
 tvals vals;
 list<workitm> work;
-long gMCounter = 0; // How many matches we found
-long gSCounter = 0; // How many samples we skipped
-jack_port_t * input_port;
+unsigned long gMCounter = 0; // How many matches we found
+unsigned long gSCounter = 0; // How many samples we skipped
+jack_port_t * dst_port;
 jack_client_t * client;
 
-void dump_out(int w, double place, double len, int noop) {
+void dump_out(int w, double place, double len, unsigned long noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
-}
-
-void new_port(const jack_port_id_t port_id, int registerr, void *arg) {
-    jack_port_t * src_port = jack_port_by_id(client, port_id);
-    if (registerr) {
-        if (JackPortIsOutput & jack_port_flags(src_port)) {
-            printf("Connecting %s with %s\n", jack_port_name(src_port), jack_port_name(input_port));
-			char buffer[200];
-            sprintf(buffer, "sleep 0.5 && jack_connect %s %s &", jack_port_name(src_port), jack_port_name(input_port));
-            system(buffer);
-            //if (jack_connect(client, jack_port_name(input_port), jack_port_name(src_port))) {
-                //printf("Failed to connect two ports!\n");
-            //}
-        }
-    }
 }
 
 
@@ -200,26 +186,27 @@ int main (int argc, char *argv[]) {
         printf("NOT FOUND\n");
 
     } else if (argc == 5) {
-        // Initialize jack
-        printf ("Starting JACK...\n");
-        if ((client = jack_client_new ("soundpatty")) == 0) {
+
+        char dst_chan_name[] = "sp_";
+        strcat(dst_chan_name, argv[4]);
+        if ((client = jack_client_new (dst_chan_name)) == 0) {
             fatal ("jack server not running?\n");
         }
 
         jack_set_process_callback(client, jack_proc, 0);
-
         jack_on_shutdown(client, fatal2, (void*)"Jack server shut us down!");
-        if (jack_set_port_registration_callback(client, new_port, (void*)client)) {
-            printf("Setting client registration callback failed\n");
-        }
 
-        printf ("engine sample rate: %d\n", SAMPLE_RATE = jack_get_sample_rate (client));
-		WAVE = (int)SAMPLE_RATE*cfg["minwavelen"];
-		CHUNKSIZE = cfg["chunklen"]*SAMPLE_RATE;
-        input_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+        SAMPLE_RATE = jack_get_sample_rate (client);
+		WAVE = (int)SAMPLE_RATE * cfg["minwavelen"];
+		CHUNKSIZE = cfg["chunklen"] * SAMPLE_RATE;
+        dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
         if (jack_activate (client)) {
             fatal ("cannot activate client");
         }
+        if (jack_connect(client, argv[4], jack_port_name(dst_port))) {
+            fatal("Failed to connect two ports!\n");
+        }
+
         while (1) {
             sleep (1);
         }
@@ -235,7 +222,7 @@ int main (int argc, char *argv[]) {
 // double place - place of silence from the stream start
 // double sec - length of a found silence
 //
-void do_checking (int r, double place, double sec, int b) {
+void do_checking (int r, double place, double sec, unsigned long b) {
 
     //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
@@ -394,14 +381,17 @@ void fatal2(void * r) {
 }
 
 int jack_proc(jack_nframes_t nframes, void *arg) {
-    jack_default_audio_sample_t *in = (jack_default_audio_sample_t *) jack_port_get_buffer (input_port, nframes);
+    jack_default_audio_sample_t *in = (jack_default_audio_sample_t *) jack_port_get_buffer (dst_port, nframes);
 
     search_patterns(in, nframes, do_checking);
-    //if (gSCounter/SAMPLE_RATE > timeout) printf("It's over!\n"); // It's over, deregister client somewhen
+    if (gSCounter/SAMPLE_RATE > cfg["catchtimeout"]) {
+        printf("NOT FOUND, catchtimeout reached\n");
+        exit(0);
+    }
     return 0;
 }
 
-void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), double timeout) {
+void search_wav_patterns(FILE * in, void (*callback)(int, double, double, unsigned long), double timeout) {
     int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
     while (!feof(in)) {
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
@@ -416,19 +406,10 @@ void search_wav_patterns(FILE * in, void (*callback)(int, double, double, int), 
     }
 }
 
-void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, int)) {
-
-	jack_default_audio_sample_t mini = 2, maxi = -2;
-	for (int i = 0; i < nframes; i++) {
-		//jack_default_audio_sample_t cur = in[i]<0? 0-in[i] : in[i];
-		mini = min(mini, buf[i]);
-		maxi = max(maxi, buf[i]);
-	}
-	//printf("Min value: %.6f, max value: %.6f, value in the middle: %.6f\n", mini, maxi, buf[(int)round(nframes/2)]);
+void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, void (*callback)(int, double, double, unsigned long)) {
 
     for (int i = 0; i < nframes; gSCounter++, i++) {
-        jack_default_audio_sample_t cur = buf[i]>0?buf[i]:-buf[i];
-		//printf("%.6f\n", cur);
+        jack_default_audio_sample_t cur = buf[i]<0?-buf[i]:buf[i];
 
         int v = 0; // Counter for volume
         for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
