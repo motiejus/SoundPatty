@@ -360,7 +360,8 @@ FILE * process_headers(const char * infile) {
 	}
     // Get data chunk size here
     fread(header, 1, 4, in);
-    strcpy(sample, "data");
+	strcpy(sample, "data");
+
     if (! check_sample(sample, header)) {
         fatal ("data chunk not found in byte offset=36, file corrupted.");
     }
@@ -370,7 +371,7 @@ FILE * process_headers(const char * infile) {
 }
 
 bool check_sample (const char * sample, const char * b) { // My STRCPY.
-    for(int i = 0; i < sizeof(sample)-1; i++) {
+    for(int i = 0; sample[i] != '\0'; i++) {
         if (sample[i] != b[i]) {
             return false;
         }
