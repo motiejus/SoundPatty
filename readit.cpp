@@ -79,7 +79,7 @@ class Range {
 
 // Volume (-1..1 or -2^15..2^15)
 struct sVolumes {
-    int head, tail;
+    unsigned long head, tail;
 	jack_default_audio_sample_t min, max;
     bool proc;
 };
@@ -263,7 +263,7 @@ void do_checking (int r, double place, double sec, unsigned long b) {
             // or just increasing len
             //
             w->a = a; w->b = b;
-            w->trace.push_back(pair<int,int>(a,b));
+            w->trace.push_back(pair<int,unsigned long>(a,b));
             if (++(w->len) < round(cfg["matchme"])) { // Proceeding with the "thread"
                 used_a.insert(a);
                 //printf ("Thread expanded to %d\n", w->len);
@@ -344,19 +344,25 @@ FILE * process_headers(const char * infile) {
     }
     // Number of channels must be "MONO"
     if ( tmp[1] != 1 ) {
-        printf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
+        sprintf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, in); // Single two-byte sample
     WAVE = (int)SAMPLE_RATE*cfg["minwavelen"];
     CHUNKSIZE = cfg["chunklen"]*SAMPLE_RATE;
-    fseek(in, 0x24, 0);
+	fseek(in, 0x22, 0);
+	uint16_t BitsPerSample;
+	fread(&BitsPerSample, 1, 2, in);
+	if (BitsPerSample != 16) {
+		sprintf(errmsg, "Only 16-bit WAVs supported, given: %d\n", BitsPerSample);
+		fatal(errmsg);
+	}
+    // Get data chunk size here
     fread(header, 1, 4, in);
     strcpy(sample, "data");
     if (! check_sample(sample, header)) {
         fatal ("data chunk not found in byte offset=36, file corrupted.");
     }
-    // Get data chunk size here
     fread(&DATA_SIZE, 4, 1, in); // Single two-byte sample
     //printf ("Datasize: %d bytes\n", DATA_SIZE);
     return in;
