@@ -208,8 +208,6 @@ int main (int argc, char *argv[]) {
         }
 
         while (1) {
-            sleep (1);
-
 			if (gSCounter/SAMPLE_RATE > cfg["catchtimeout"]) {
 				printf("NOT FOUND, catchtimeout reached\n");
 				if (jack_disconnect(client, src_port_n, jack_port_name(dst_port))) {
@@ -217,6 +215,8 @@ int main (int argc, char *argv[]) {
 				}
 				exit(0);
 			}
+
+            sleep (1);
         }
     }
     exit(0);
@@ -406,6 +406,7 @@ int jack_proc(jack_nframes_t nframes, void *arg) {
 void search_wav_patterns(FILE * in, void (*callback)(int, double, double, unsigned long), double timeout) {
     int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
     while (!feof(in)) {
+        if (gSCounter/SAMPLE_RATE > timeout) break;
         fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, in);
 
         // :HACK: fix this, do not depend on jack types where you don't need!
@@ -414,7 +415,6 @@ void search_wav_patterns(FILE * in, void (*callback)(int, double, double, unsign
             buf2[i] = (jack_default_audio_sample_t)buf[i];
         }
         search_patterns(buf2, SAMPLE_RATE * BUFFERSIZE, callback);
-        if (gSCounter/SAMPLE_RATE > timeout) break;
     }
 }
 
