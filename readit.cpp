@@ -16,10 +16,6 @@
  *
  */
 
-
-/*
- * Only 16 bit PCM MONO supported now.
- */
 #include <math.h>
 #include <algorithm>
 #include <stdlib.h>
@@ -122,12 +118,13 @@ list<workitm> work;
 unsigned long gMCounter = 0; // How many matches we found
 unsigned long gSCounter = 0; // How many samples we skipped
 jack_port_t * dst_port;
+char * src_port_n;
+
 jack_client_t * client;
 
 void dump_out(int w, double place, double len, unsigned long noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
 }
-
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
@@ -200,6 +197,9 @@ int main (int argc, char *argv[]) {
 		WAVE = (int)SAMPLE_RATE * cfg["minwavelen"];
 		CHUNKSIZE = cfg["chunklen"] * SAMPLE_RATE;
         dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+		src_port_n = (char*) malloc(strlen(argv[4])+1);
+		strcpy(src_port_n, argv[4]);
+
         if (jack_activate (client)) {
             fatal ("cannot activate client");
         }
@@ -209,6 +209,14 @@ int main (int argc, char *argv[]) {
 
         while (1) {
             sleep (1);
+
+			if (gSCounter/SAMPLE_RATE > cfg["catchtimeout"]) {
+				printf("NOT FOUND, catchtimeout reached\n");
+				if (jack_disconnect(client, src_port_n, jack_port_name(dst_port))) {
+					printf("Failed to disconnect ports!\n");
+				}
+				exit(0);
+			}
         }
     }
     exit(0);
@@ -380,22 +388,18 @@ bool check_sample (const char * sample, const char * b) { // My STRCPY.
 }
 
 void fatal (const char * msg) { // Print error message and exit
-    perror (msg);
+    printf (msg);
     exit (1);
 }
 void fatal2(void * r) {
     char * msg = (char*) r;
-    perror(msg);
+    fatal(msg);
 }
 
 int jack_proc(jack_nframes_t nframes, void *arg) {
     jack_default_audio_sample_t *in = (jack_default_audio_sample_t *) jack_port_get_buffer (dst_port, nframes);
 
     search_patterns(in, nframes, do_checking);
-    if (gSCounter/SAMPLE_RATE > cfg["catchtimeout"]) {
-        printf("NOT FOUND, catchtimeout reached\n");
-        exit(0);
-    }
     return 0;
 }
 
@@ -434,7 +438,6 @@ void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes,
                 //
                 V->head = gSCounter;
             } else { // We are not in the wave
-				//printf("V->min: %.6f\n", V->min);
                 if (V->proc && (V->min < 0.001 || gSCounter - V->head > WAVE)) {
 
                     //------------------------------------------------------------
