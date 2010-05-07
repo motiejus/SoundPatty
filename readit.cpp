@@ -45,7 +45,7 @@ void read_cfg(const char*, const int);
 void fatal (const char* );
 void fatal2(void * r);
 int jack_proc(jack_nframes_t nframes, void *arg);
-vector<string> explode(const string&, const string&); // Found somewhere on NET
+vector<string> explode(const string&, const string&);
 
 char errmsg[200];   // Temporary message
 int SAMPLE_RATE,    // 
@@ -126,6 +126,19 @@ void dump_out(int w, double place, double len, unsigned long noop) {
     printf ("%d;%.6f;%.6f\n", w, place, len);
 }
 
+void new_port(const jack_port_id_t port_id, int registerr, void *arg) {
+    jack_port_t * src_port = jack_port_by_id(client, port_id);
+    if (registerr) {
+        if (JackPortIsOutput & jack_port_flags(src_port)) {
+            printf("Connecting %s with %s\n", jack_port_name(src_port), jack_port_name(dst_port));
+			char buffer[200];
+			// Hacky. Must use thread + FIFO queue for this.
+            sprintf(buffer, "sleep 0.5 && jack_connect %s %s &", jack_port_name(src_port), jack_port_name(dst_port));
+            system(buffer);
+        }
+    }
+}
+
 int main (int argc, char *argv[]) {
     if (argc < 3) {
         fatal ("Usage: ./readit config.cfg sample.wav\nor\n"
@@ -140,7 +153,7 @@ int main (int argc, char *argv[]) {
 
     read_cfg(argv[1], multiply);
     // ------------------------------------------------------------
-    // Only header given, we just dump out the silence values
+    // Only header given, we just dump out the values
     //
     if (argc == 3) {
         FILE * in = process_headers(argv[2]);
@@ -200,18 +213,25 @@ int main (int argc, char *argv[]) {
 		src_port_n = (char*) malloc(strlen(argv[4])+1);
 		strcpy(src_port_n, argv[4]);
 
+		if (jack_set_port_registration_callback(client, new_port, NULL)) {
+			printf("Setting client registration callback failed\n");
+		}
+
         if (jack_activate (client)) {
             fatal ("cannot activate client");
         }
+
+		/*
         if (jack_connect(client, argv[4], jack_port_name(dst_port))) {
             fatal("Failed to connect two ports!\n");
         }
+		*/
 
         while (1) {
 			if (gSCounter/SAMPLE_RATE > cfg["catchtimeout"]) {
 				printf("NOT FOUND, catchtimeout reached\n");
 				if (jack_disconnect(client, src_port_n, jack_port_name(dst_port))) {
-					printf("Failed to disconnect ports!\n");
+					printf("Failed to disconnect ports...!\n");
 				}
 				exit(0);
 			}
@@ -226,15 +246,16 @@ int main (int argc, char *argv[]) {
 // This gets called every time there is a treshold found.
 // Work array is global
 //
-// int b - index of silence found
-// double place - place of silence from the stream start
-// double sec - length of a found silence
+// int r - id of treshold found (in config.cfg: treshold_(<?r>\d)_(min|max))
+// double place - place of sample from the stream start (sec)
+// double sec - length of a found sample (sec)
+// int b - index (overall) of sample found
 //
 void do_checking (int r, double place, double sec, unsigned long b) {
 
     //pair<tvals::iterator, tvals::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
-    // Let's iterate through pa
+    // Iterate through pa
 
     tvals fina; // FoundInA
     Range demorange(sec);
@@ -246,15 +267,14 @@ void do_checking (int r, double place, double sec, unsigned long b) {
     //------------------------------------------------------------
     // We put a indexes here that we use for continued threads
     // (we don't want to create a new "thread" with already
-    // used length of a silence)
+    // used length of a sample)
     //
     set<int> used_a; 
 
     //------------------------------------------------------------
-    // Iterating through samples that match the found silence
+    // Iterating through samples that match the found sample
     //
     for (tvals::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
-    //for (tvals::iterator in_a = pa.first; in_a != pa.second; in_a++)
     {
         //printf("%d %.6f matches %.6f (%d)\n", in_a->first.first, sec, in_a->first.second.tm, in_a->second.c);
         int a = in_a->second.c;
@@ -324,11 +344,6 @@ void read_cfg (const char * filename, const int multiply) {
         }
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1); // Because [start,end), but we need all
-
-	int v = 0;
-	for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
-		//printf("#%d: Min: %.6f, max: %.6f\n", v, V->min, V->max);
-	}
 }
 
 FILE * process_headers(const char * infile) {
@@ -391,6 +406,7 @@ void fatal (const char * msg) { // Print error message and exit
     printf (msg);
     exit (1);
 }
+
 void fatal2(void * r) {
     char * msg = (char*) r;
     fatal(msg);
