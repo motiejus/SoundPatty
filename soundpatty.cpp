@@ -39,6 +39,9 @@ using namespace std;
 #define ACTION_DUMP 0
 #define ACTION_WRITE 1
 
+#define ACTION_FN_ARGS int w, double place, double len, unsigned long int b
+#define ACTION_FN(func) void (*func)(ACTION_FN_ARGS)
+
 void fatal(void * r) {
     char * msg = (char*) r;
     printf (msg);
@@ -46,34 +49,49 @@ void fatal(void * r) {
 }
 char errmsg[200];   // Temporary message
 
-class Input {
-    // Callback is called every time there is input to be processed
-    // Jis mane turės pakviesti (funkciją, kuri paduodama parametruose)
-    public:
-        int SAMPLE_RATE;
-    protected:
-        Input();
-};
 struct sVolumes {
     unsigned long head, tail;
 	jack_default_audio_sample_t min, max;
     bool proc;
 };
 
-/*
+class Input {
+    public:
+        int SAMPLE_RATE;
+};
+class SoundPatty {
+    public:
+        SoundPatty(const char * fn) { 
+            read_cfg(fn);
+        };
+        map<string, double> cfg;
+        virtual void Error(void*);
+        int setInput(int, void*);
+        int setAction(int, ACTION_FN(callback));
+        int go();
+        int WAVE, CHUNKSIZE;
+    private:
+        Input * _input;
+        int read_cfg(const char*);
+        int source_app, action;
+        char *input_params;
+        ACTION_FN(action_fn);
+        int SAMPLE_RATE, DATA_SIZE;
+        vector<sVolumes> volume;
+};
 class WavInput : public Input {
     public:
         WavInput(SoundPatty * inst, void * args) {
-            // Open file handler, read headers
             _sp_inst = inst;
             char * filename = (char*) args;
             process_headers(filename);
         }
-
     protected:
         SoundPatty * _sp_inst;
-        int process_headers(const char * infile) {
-            if (FILE * _fh = fopen(infile, "rb")) {
+        int process_headers(const char * infile) {/*{{{*/
+
+            FILE * _fh = fopen(infile, "rb");
+            if (_fh == NULL) {
                 sprintf(errmsg, "Failed to open file %s, exiting\n", infile);
                 fatal((void*)errmsg);
             }
@@ -101,8 +119,8 @@ class WavInput : public Input {
                 fatal ((void*)errmsg);
             }
             fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
-            _sp_inst -> WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
-            _sp_inst -> CHUNKSIZE = _sp_inst -> cfg["chunklen"] * (int)SAMPLE_RATE;
+            _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
+            _sp_inst->CHUNKSIZE = _sp_inst->cfg["chunklen"] * (int)SAMPLE_RATE;
             fseek(_fh, 0x22, 0);
             uint16_t BitsPerSample;
             fread(&BitsPerSample, 1, 2, _fh);
@@ -129,38 +147,17 @@ class WavInput : public Input {
                 }
             }
             return true;
-        }
+        }/*}}}*/
     private:
         FILE *_fh;
 
 };
-*/
-
-class SoundPatty {
-    public:
-        map<string, double> cfg;
-        SoundPatty(const char *);
-        virtual void Error(void*);
-        int setInput(int, void*);
-        int setAction(int, void *);
-        int go();
-        int WAVE, CHUNKSIZE;
-    private:
-        //Input * _input;
-        int read_cfg(const char*);
-        int source_app, action;
-        char *input_params;
-        void *action_fn;
-        int SAMPLE_RATE, DATA_SIZE;
-        vector<sVolumes> volume;
-};
-
-void SoundPatty::Error(void * msg) {
+void SoundPatty::Error(void * msg) {/*{{{*/
     char * mesg = (char*) msg;
     printf(mesg);
     exit(0);
-}
-int SoundPatty::read_cfg (const char * filename) {
+}/*}}}*/
+int SoundPatty::read_cfg (const char * filename) {/*{{{*/
     ifstream file;
     file.open(filename);
     string line;
@@ -195,23 +192,21 @@ int SoundPatty::read_cfg (const char * filename) {
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
     return 0;
-}
+}/*}}}*/
 
 int SoundPatty::setInput(const int source_app, void * input_params) {
-
     if (0 <= source_app && source_app <= 2) {
         this->source_app = source_app;
     }
     switch(this->source_app) {
         case SRC_WAV:
-            //Input * _input = new Input(new WavInput(this, input_params));
-            Input* _input = new Input(new WavInput);
+            Input * _input = new WavInput(this, input_params);
             break;
     }
     return 0;
 }
 
-int SoundPatty::setAction(const int action, void *callback) {
+int SoundPatty::setAction(const int action, ACTION_FN(callback)) {
     action_fn = callback;
     if (0 <= action && action <= 1) {
         this->action = action;
@@ -220,6 +215,20 @@ int SoundPatty::setAction(const int action, void *callback) {
     return 1;
 }
 
+void dump_out(ACTION_FN_ARGS) {
+    printf ("%d;%.6f;%.6f\n", w, place, len);
+}
+
 int main (int argc, char *argv[]) {
+    if (argc < 3) {
+        fatal ((void*)"Usage: ./readit config.cfg sample.wav\nor\n"
+                "./readit config.cfg samplefile.txt catchable.wav\n"
+                "./readit config.cfg samplefile.txt jack jack\n");
+    }
+    if (argc == 3) {
+        SoundPatty * pat = new SoundPatty(argv[1]); // usually config.cfg
+        pat->setInput(SRC_WAV, argv[2]);
+        pat->setAction(ACTION_WRITE, dump_out);
+    }
     exit(0);
 }
