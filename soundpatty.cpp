@@ -38,6 +38,7 @@ using namespace std;
 #define SRC_JACK_AUTO 2
 #define ACTION_DUMP 0
 #define ACTION_CATCH 1
+
 #define BUFFERSIZE 1
 
 #define ACTION_FN_ARGS int w, double place, double len, unsigned long int b
@@ -78,7 +79,7 @@ class Input {
 class SoundPatty {
     public:
         SoundPatty(const char * fn) { 
-            gsCounter = 0;
+            gSCounter = gMCounter = 0;
             read_cfg(fn);
         };
         map<string, double> cfg;
@@ -86,17 +87,33 @@ class SoundPatty {
         int setInput(int, void*);
         int go(int, ACTION_FN(callback));
         int WAVE, CHUNKSIZE;
-        int gsCounter;
+        unsigned long gMCounter, // How many matches we found
+                      gSCounter; // How many samples we skipped
+        void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, ACTION_FN(callback));
+        vector<sVolumes> volume;
     private:
         Input * _input;
         int read_cfg(const char*);
         int source_app;
         char *input_params;
-        vector<sVolumes> volume;
 };
 
 class WavInput : public Input {
     public:
+        WavInput(SoundPatty * inst, void * args) {
+            _sp_inst = inst;
+            char * filename = (char*) args;
+            process_headers(filename);
+            // ------------------------------------------------------------
+            // Adjust _sp_ volume 
+            // Jack has float (-1..1) while M$ WAV has (-2^15..2^15)
+            //
+            for (vector<sVolumes>::iterator vol = _sp_inst->volume.begin(); vol != _sp_inst->volume.end(); vol++) {
+                vol->min *= (1<<15);
+                vol->max *= (1<<15);
+            }
+        }
+
         buffer * giveInput(buffer *buf_prop) {
             int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
             if (feof(_fh)) {
@@ -112,12 +129,6 @@ class WavInput : public Input {
             buf_prop->buf = buf2;
             buf_prop->nframes = read_size;
             return buf_prop;
-        }
-
-        WavInput(SoundPatty * inst, void * args) {
-            _sp_inst = inst;
-            char * filename = (char*) args;
-            process_headers(filename);
         }
     protected:
         int process_headers(const char * infile) {/*{{{*/
@@ -237,16 +248,58 @@ int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
     return 0;
 }/*}}}*/
 
-int SoundPatty::go(const int action, ACTION_FN(callback)) {/*{{{*/
+int SoundPatty::go(const int action, ACTION_FN(callback)) {
     string which_timeout (action == ACTION_DUMP?"sampletimeout" : "catchtimeout");
     buffer buf;
 
     buf.buf = NULL;
     buf.nframes = 0;
     while (_input->giveInput(&buf) != NULL) { // Have pointer to data
-        if (gsCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
-            printf("Timeout reached: %.6f\n", gsCounter/_input->SAMPLE_RATE);
+
+        search_patterns(buf.buf, buf.nframes, callback);
+        if (gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
             return 0;
+        }
+    }
+}
+
+void SoundPatty::search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, ACTION_FN(callback)) {
+    for (int i = 0; i < nframes; gSCounter++, i++) {
+        jack_default_audio_sample_t cur = buf[i]<0?-buf[i]:buf[i];
+
+        int v = 0; // Counter for volume
+        for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
+            if (V->min <= cur && cur <= V->max) {
+                // ------------------------------------------------------------
+                // If it's first item in this wave (proc = processing started)
+                //
+                if (!V->proc) {
+                    V->tail = gSCounter;
+                    V->proc = true;
+                }
+                // ------------------------------------------------------------
+                // Here we are just normally in the wave.
+                //
+                V->head = gSCounter;
+            } else { // We are not in the wave
+                if (V->proc && (V->min < 0.001 || gSCounter - V->head > WAVE)) {
+
+                    //------------------------------------------------------------
+                    // This wave is over
+                    //
+                    if (gSCounter - V->tail >= CHUNKSIZE) {
+                        // ------------------------------------------------------------
+                        // The previous chunk is big enough to be noticed
+                        //
+                        callback(v, (double)V->tail/_input->SAMPLE_RATE, (double)(V->head - V->tail)/_input->SAMPLE_RATE, gMCounter++);
+                    } 
+                    // ------------------------------------------------------------
+                    // Else it is too small, but we don't want to do anything in that case
+                    // So therefore we just say that wave processing is over
+                    //
+                    V->proc = false;
+                }
+            }
         }
     }
 }
