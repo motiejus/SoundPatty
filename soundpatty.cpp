@@ -41,15 +41,53 @@ using namespace std;
 
 #define BUFFERSIZE 1
 
-#define ACTION_FN_ARGS int w, double place, double len, unsigned long int b
-#define ACTION_FN(func) void (*func)(ACTION_FN_ARGS)
 
 void fatal(void * r) {
     char * msg = (char*) r;
     printf (msg);
     exit (1);
 };
+
 char errmsg[200];   // Temporary message
+
+void its_over(double place) {
+    printf("FOUND, processed %.6f sec\n", place);
+    exit(0);
+}
+class Range {/*{{{*/
+    public:
+        Range() { tm = tmin = tmax = 0; };
+        Range(const double & a) { tm = a; tmin = a * 0.89; tmax = a * 1.11; }
+        Range(const double & tmin, const double &tm, const double &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
+        Range(const double & tmin, const double &tmax) { this->tmin = tmin; this->tmax = tmax; }
+        Range operator = (const double i) { return Range(i); }
+        bool operator == (const double & i) const { return tmin < i && i < tmax; }
+        bool operator == (const Range & r) const { return r == tm; }
+        bool operator > (const double & i) const { return i > tmax; }
+        bool operator > (const Range & r) const { return r > tm; }
+        bool operator < (const double & i) const { return i < tmin; }
+        bool operator < (const Range & r) const { return r < tm; }
+        double tmin, tm, tmax;
+};
+typedef struct {
+    jack_default_audio_sample_t * buf;
+    jack_nframes_t nframes;
+} buffer;
+
+class workitm {
+    public:
+        int len,a;
+        unsigned long b;
+
+        workitm(int, unsigned long);
+        list<pair<int, unsigned long> > trace;
+};
+
+workitm::workitm(const int a, const unsigned long b) {
+    this->a = a; this->b = b;
+    len = 0;
+    trace.push_back(pair<int,unsigned long>(a,b));
+};
 
 struct sVolumes {
     unsigned long head, tail;
@@ -57,10 +95,17 @@ struct sVolumes {
     bool proc;
 };
 
-typedef struct {
-    jack_default_audio_sample_t * buf;
-    jack_nframes_t nframes;
-} buffer;
+struct valsitm_t {
+    int c; // Counter in map
+    double place;
+};
+struct treshold_t {
+    int r;
+    double place, sec;
+    unsigned long b;
+};
+
+typedef multimap<pair<int, Range>, valsitm_t> vals_t;/*}}}*/
 
 class SoundPatty;
 class Input {
@@ -82,16 +127,31 @@ class SoundPatty {
             gSCounter = gMCounter = 0;
             read_cfg(fn);
         };
+        void setAction(int action) {
+            _action = action;
+        }
+        void setAction(int action, void (*fn)(double)) {
+            _action = action;
+            _callback = fn; // What to do when we catch a pattern
+        }
+        static void dump_out(const treshold_t args) {/*{{{*/
+            printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
+        }/*}}}*/
+        treshold_t * do_checking(const treshold_t args);
         map<string, double> cfg;
         virtual void Error(void*);
         int setInput(int, void*);
-        int go(int, ACTION_FN(callback));
+        int go();
         int WAVE, CHUNKSIZE;
         unsigned long gMCounter, // How many matches we found
                       gSCounter; // How many samples we skipped
-        void search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, ACTION_FN(callback));
+        int search_patterns (jack_default_audio_sample_t cur, treshold_t *);
         vector<sVolumes> volume;
     private:
+        int _action;
+        void (*_callback)(double);
+        list<workitm> work;
+        vals_t vals;
         Input * _input;
         int read_cfg(const char*);
         int source_app;
@@ -248,65 +308,145 @@ int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
     return 0;
 }/*}}}*/
 
-int SoundPatty::go(const int action, ACTION_FN(callback)) {
-    string which_timeout (action == ACTION_DUMP?"sampletimeout" : "catchtimeout");
+int SoundPatty::go() {
+    string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer buf;
 
-    buf.buf = NULL;
-    buf.nframes = 0;
     while (_input->giveInput(&buf) != NULL) { // Have pointer to data
+        treshold_t ret;
 
-        search_patterns(buf.buf, buf.nframes, callback);
-        if (gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
+        for (int i = 0; i < buf.nframes; gSCounter++, i++) {
+            jack_default_audio_sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
+            if (search_patterns(cur, &ret))
+            {
+                if (_action == ACTION_DUMP) {
+                    SoundPatty::dump_out(ret);
+                }
+                if (_action == ACTION_CATCH) {
+                    SoundPatty::do_checking(ret);
+                }
+            }
+        }
+
+
+        if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
+            //printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
             return 0;
         }
     }
 }
+int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * ret) {/*{{{*/
+    int v = 0; // Counter for volume
+    for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
+        if (V->min <= cur && cur <= V->max) {
+            // ------------------------------------------------------------
+            // If it's first item in this wave (proc = processing started)
+            //
+            if (!V->proc) {
+                V->tail = gSCounter;
+                V->proc = true;
+            }
+            // ------------------------------------------------------------
+            // Here we are just normally in the wave.
+            //
+            V->head = gSCounter;
+        } else { // We are not in the wave
+            if (V->proc && (V->min < 0.001 || gSCounter - V->head > WAVE)) {
 
-void SoundPatty::search_patterns (jack_default_audio_sample_t * buf, jack_nframes_t nframes, ACTION_FN(callback)) {
-    for (int i = 0; i < nframes; gSCounter++, i++) {
-        jack_default_audio_sample_t cur = buf[i]<0?-buf[i]:buf[i];
-
-        int v = 0; // Counter for volume
-        for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
-            if (V->min <= cur && cur <= V->max) {
-                // ------------------------------------------------------------
-                // If it's first item in this wave (proc = processing started)
+                //------------------------------------------------------------
+                // This wave is over
                 //
-                if (!V->proc) {
-                    V->tail = gSCounter;
-                    V->proc = true;
-                }
-                // ------------------------------------------------------------
-                // Here we are just normally in the wave.
-                //
-                V->head = gSCounter;
-            } else { // We are not in the wave
-                if (V->proc && (V->min < 0.001 || gSCounter - V->head > WAVE)) {
+                V->proc = false; // Stop processing for both cases: found and not
 
-                    //------------------------------------------------------------
-                    // This wave is over
-                    //
-                    if (gSCounter - V->tail >= CHUNKSIZE) {
-                        // ------------------------------------------------------------
-                        // The previous chunk is big enough to be noticed
-                        //
-                        callback(v, (double)V->tail/_input->SAMPLE_RATE, (double)(V->head - V->tail)/_input->SAMPLE_RATE, gMCounter++);
-                    } 
+                if (gSCounter - V->tail >= CHUNKSIZE) {
                     // ------------------------------------------------------------
-                    // Else it is too small, but we don't want to do anything in that case
-                    // So therefore we just say that wave processing is over
+                    // The previous chunk is big enough to be noticed
                     //
-                    V->proc = false;
-                }
+                    ret -> r = v;
+                    ret -> place = (double)V->tail/_input->SAMPLE_RATE;
+                    ret -> sec = (double)(V->head - V->tail)/_input->SAMPLE_RATE;
+                    ret -> b = gMCounter++;
+                    //callback(v, (double)V->tail/_input->SAMPLE_RATE, (double)(V->head - V->tail)/_input->SAMPLE_RATE, gMCounter++);
+                    return 1;
+                } 
+                // ------------------------------------------------------------
+                // Else it is too small, but we don't want to do anything in that case
+                // So therefore we just say that wave processing is over
+                //
             }
         }
     }
-}
+    return 0;
+}/*}}}*/
+// --------------------------------------------------------------------------------/*{{{*/
+// This gets called every time there is a treshold found.
+// Work array is global
+//
+// int r - id of treshold found (in config.cfg: treshold_(<?r>\d)_(min|max))
+// double place - place of sample from the stream start (sec)
+// double sec - length of a found sample (sec)
+// int b - index (overall) of sample found
+///*}}}*/
+treshold_t * SoundPatty::do_checking(const treshold_t tr) {/*{{{*/
 
-void dump_out(ACTION_FN_ARGS) {
-    printf ("%d;%.6f;%.6f\n", w, place, len);
-}
+    //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
+    // Manually searching for matching values because with that pairs equal_range doesnt work
+    // Iterate through pa
+
+    vals_t fina; // FoundInA
+
+    Range demorange(tr.sec);
+    pair<int,Range> sample(tr.r,demorange);
+    for (vals_t::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
+        if (it1->first == sample)
+            fina.insert(*it1);
+    }
+    //------------------------------------------------------------
+    // We put a indexes here that we use for continued threads
+    // (we don't want to create a new "thread" with already
+    // used length of a sample)
+    //
+    set<int> used_a; 
+
+    //------------------------------------------------------------
+    // Iterating through samples that match the found sample
+    //
+    for (vals_t::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
+    {
+        //printf("%d %.6f matches %.6f (%d)\n", in_a->first.first, sec, in_a->first.second.tm, in_a->second.c);
+        int a = in_a->second.c, b = tr.b;
+        //------------------------------------------------------------
+        // Check if it exists in our work array
+        //
+        for (list<workitm>::iterator w = work.begin(); w != work.end();) {
+            if (b - w->b > round(cfg["maxsteps"])) {
+                work.erase(w); w = work.begin(); continue;
+            }
+            if (b == w->b || a - w->a > round(cfg["maxsteps"]) || w->a >= a) { w++; continue; }
+            // ------------------------------------------------------------
+            // We fit the "region" here. We either finished,
+            // or just increasing len
+            //
+            w->a = a; w->b = b;
+            w->trace.push_back(pair<int,unsigned long>(a,b));
+            if (++(w->len) < round(cfg["matchme"])) { // Proceeding with the "thread"
+                used_a.insert(a);
+                //printf ("Thread expanded to %d\n", w->len);
+            } else { // This means the treshold is reached
+
+                // This kind of function is called when the pattern is recognized
+                //void(*end_fn)(workitm *, double) = (void*)(workitm *, double) _callback;
+                _callback (tr.place + tr.sec);
+            }
+            w++;
+            // End of work iteration array
+        }
+        if (used_a.find(a) == used_a.end()) {
+            work.push_back(workitm(a,b));
+            //printf ("Pushed back %d %d\n", a,b);
+        }
+    }
+}/*}}}*/
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
@@ -314,13 +454,17 @@ int main (int argc, char *argv[]) {
                 "./readit config.cfg samplefile.txt catchable.wav\n"
                 "./readit config.cfg samplefile.txt jack jack\n");
     }
-    if (argc == 3) {
-        SoundPatty * pat = new SoundPatty(argv[1]); // usually config.cfg
-        pat->setInput(SRC_WAV, argv[2]);
-        switch (pat->go(ACTION_DUMP, dump_out)) {
-            case 0: // It's just over. Either timeout or eof reached
-                exit(0);
-        }
+    SoundPatty * pat = new SoundPatty(argv[1]); // usually config.cfg
+    if (argc == 3 || argc == 4) { // WAV
+        pat->setInput(SRC_WAV, argv[argc - 1]);
     }
+    if (argc == 3) { // Dump out via WAV
+        pat->setAction(ACTION_DUMP);
+    }
+    if (argc == 4) { // Catch
+        pat->setAction(ACTION_CATCH, its_over);
+    }
+    pat->go();
+
     exit(0);
 }
