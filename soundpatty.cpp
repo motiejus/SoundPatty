@@ -37,7 +37,8 @@ using namespace std;
 #define SRC_JACK_ONE 1
 #define SRC_JACK_AUTO 2
 #define ACTION_DUMP 0
-#define ACTION_WRITE 1
+#define ACTION_CATCH 1
+#define BUFFERSIZE 1
 
 #define ACTION_FN_ARGS int w, double place, double len, unsigned long int b
 #define ACTION_FN(func) void (*func)(ACTION_FN_ARGS)
@@ -46,7 +47,7 @@ void fatal(void * r) {
     char * msg = (char*) r;
     printf (msg);
     exit (1);
-}
+};
 char errmsg[200];   // Temporary message
 
 struct sVolumes {
@@ -55,42 +56,73 @@ struct sVolumes {
     bool proc;
 };
 
+typedef struct {
+    jack_default_audio_sample_t * buf;
+    jack_nframes_t nframes;
+} buffer;
+
+class SoundPatty;
 class Input {
     public:
-        int SAMPLE_RATE;
+        int SAMPLE_RATE, DATA_SIZE;
+        virtual buffer * giveInput(buffer *) {
+            fatal((void*)"This should never be called!!!");
+        };
+        virtual void test() {
+            printf("Called Input\n");
+        }
+    protected:
+        SoundPatty * _sp_inst;
 };
+
 class SoundPatty {
     public:
         SoundPatty(const char * fn) { 
+            gsCounter = 0;
             read_cfg(fn);
         };
         map<string, double> cfg;
         virtual void Error(void*);
         int setInput(int, void*);
-        int setAction(int, ACTION_FN(callback));
-        int go();
+        int go(int, ACTION_FN(callback));
         int WAVE, CHUNKSIZE;
+        int gsCounter;
     private:
         Input * _input;
         int read_cfg(const char*);
-        int source_app, action;
+        int source_app;
         char *input_params;
-        ACTION_FN(action_fn);
-        int SAMPLE_RATE, DATA_SIZE;
         vector<sVolumes> volume;
 };
+
 class WavInput : public Input {
     public:
+        buffer * giveInput(buffer *buf_prop) {
+            int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
+            if (feof(_fh)) {
+                return NULL;
+            }
+            size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
+
+            // :HACK: fix this, do not depend on jack types where you don't need!
+            jack_default_audio_sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
+            for(int i = 0; i < read_size; i++) {
+                buf2[i] = (jack_default_audio_sample_t)buf[i];
+            }
+            buf_prop->buf = buf2;
+            buf_prop->nframes = read_size;
+            return buf_prop;
+        }
+
         WavInput(SoundPatty * inst, void * args) {
             _sp_inst = inst;
             char * filename = (char*) args;
             process_headers(filename);
         }
     protected:
-        SoundPatty * _sp_inst;
         int process_headers(const char * infile) {/*{{{*/
 
-            FILE * _fh = fopen(infile, "rb");
+            _fh = fopen(infile, "rb");
             if (_fh == NULL) {
                 sprintf(errmsg, "Failed to open file %s, exiting\n", infile);
                 fatal((void*)errmsg);
@@ -193,26 +225,30 @@ int SoundPatty::read_cfg (const char * filename) {/*{{{*/
     volume.assign(volume.begin(), volume.begin()+max_index+1);
     return 0;
 }/*}}}*/
-
-int SoundPatty::setInput(const int source_app, void * input_params) {
+int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
     if (0 <= source_app && source_app <= 2) {
         this->source_app = source_app;
     }
     switch(this->source_app) {
         case SRC_WAV:
-            Input * _input = new WavInput(this, input_params);
+            _input = new WavInput(this, input_params);
             break;
     }
     return 0;
-}
+}/*}}}*/
 
-int SoundPatty::setAction(const int action, ACTION_FN(callback)) {
-    action_fn = callback;
-    if (0 <= action && action <= 1) {
-        this->action = action;
-        return 0;
+int SoundPatty::go(const int action, ACTION_FN(callback)) {/*{{{*/
+    string which_timeout (action == ACTION_DUMP?"sampletimeout" : "catchtimeout");
+    buffer buf;
+
+    buf.buf = NULL;
+    buf.nframes = 0;
+    while (_input->giveInput(&buf) != NULL) { // Have pointer to data
+        if (gsCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
+            printf("Timeout reached: %.6f\n", gsCounter/_input->SAMPLE_RATE);
+            return 0;
+        }
     }
-    return 1;
 }
 
 void dump_out(ACTION_FN_ARGS) {
@@ -228,7 +264,10 @@ int main (int argc, char *argv[]) {
     if (argc == 3) {
         SoundPatty * pat = new SoundPatty(argv[1]); // usually config.cfg
         pat->setInput(SRC_WAV, argv[2]);
-        pat->setAction(ACTION_WRITE, dump_out);
+        switch (pat->go(ACTION_DUMP, dump_out)) {
+            case 0: // It's just over. Either timeout or eof reached
+                exit(0);
+        }
     }
     exit(0);
 }
