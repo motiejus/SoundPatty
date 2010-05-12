@@ -47,8 +47,10 @@ void fatal(void * r) {
     printf (msg);
     exit (1);
 };
-
-char errmsg[200];   // Temporary message
+void fatal(char * msg) {
+    printf (msg);
+    exit (1);
+}
 
 void its_over(double place) {
     printf("FOUND, processed %.6f sec\n", place);
@@ -143,7 +145,6 @@ class SoundPatty {
         }/*}}}*/
         treshold_t * do_checking(const treshold_t args);
         map<string, double> cfg;
-        virtual void Error(void*);
         int setInput(int, void*);
         int go();
         int WAVE, CHUNKSIZE;
@@ -164,7 +165,7 @@ class SoundPatty {
 
 class WavInput : public Input {
     public:
-        WavInput(SoundPatty * inst, void * args) {
+        WavInput(SoundPatty * inst, const void * args) {
             _sp_inst = inst;
             char * filename = (char*) args;
             process_headers(filename);
@@ -196,11 +197,12 @@ class WavInput : public Input {
         }
     protected:
         int process_headers(const char * infile) {/*{{{*/
+            char errmsg[200];
 
             _fh = fopen(infile, "rb");
             if (_fh == NULL) {
                 sprintf(errmsg, "Failed to open file %s, exiting\n", infile);
-                fatal((void*)errmsg);
+                fatal(errmsg);
             }
 
             // Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
@@ -210,7 +212,7 @@ class WavInput : public Input {
             char sample[] = "RIFF";
             if (! check_sample(sample, header) ) {
                 sprintf(errmsg, "RIFF header not found in %s, exiting\n", infile);
-                fatal((void*)errmsg);
+                fatal(errmsg);
             }
             // Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
             uint16_t tmp[2]; // two-byte integer
@@ -218,12 +220,12 @@ class WavInput : public Input {
             fread(&tmp, 2, 2, _fh); // Reading two two-byte samples (comp. code and no. of channels)
             if ( tmp[0] != 1 ) {
                 sprintf(errmsg, "Only PCM(1) supported, compression code given: %d\n", tmp[0]);
-                fatal ((void*)errmsg);
+                fatal (errmsg);
             }
             // Number of channels must be "MONO"
             if ( tmp[1] != 1 ) {
                 sprintf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
-                fatal ((void*)errmsg);
+                fatal (errmsg);
             }
             fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
             _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
@@ -233,7 +235,7 @@ class WavInput : public Input {
             fread(&BitsPerSample, 1, 2, _fh);
             if (BitsPerSample != 16) {
                 sprintf(errmsg, "Only 16-bit WAVs supported, given: %d\n", BitsPerSample);
-                fatal((void*)errmsg);
+                fatal(errmsg);
             }
             // Get data chunk size here
             fread(header, 1, 4, _fh);
@@ -259,11 +261,21 @@ class WavInput : public Input {
         FILE *_fh;
 
 };
-void SoundPatty::Error(void * msg) {/*{{{*/
-    char * mesg = (char*) msg;
-    printf(mesg);
-    exit(0);
-}/*}}}*/
+
+class JackInput : public Input {
+    public:
+        bool single_chan;
+        char * chan_name;
+        JackInput(SoundPatty * inst, const bool single_chan, const void * args) {
+            // single_chan = (true|false) must be set before calling this function
+            char * chan_name = (char*) args;
+            this->single_chan = single_chan;
+            // Open up a port
+            if (single_chan) {
+            }
+        }
+};
+
 int SoundPatty::read_cfg (const char * filename) {/*{{{*/
     ifstream file;
     file.open(filename);
@@ -308,10 +320,15 @@ int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
         case SRC_WAV:
             _input = new WavInput(this, input_params);
             break;
+        case SRC_JACK_ONE:
+            _input = new JackInput(this, true, input_params);
+            break;
+        case SRC_JACK_AUTO:
+            _input = new JackInput(this, false, input_params);
+            break;
     }
     return 0;
 }/*}}}*/
-
 int SoundPatty::go() {
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer buf;
