@@ -29,7 +29,11 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+
 #include <jack/jack.h>
+
+#include <sys/types.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -114,7 +118,7 @@ class Input {
     public:
         int SAMPLE_RATE, DATA_SIZE;
         virtual buffer * giveInput(buffer *) {
-            fatal((void*)"This should never be called!!!");
+            fatal((void*)"giveInput not implemented, exiting\n");
         };
         virtual void test() {
             printf("Called Input\n");
@@ -262,17 +266,36 @@ class WavInput : public Input {
 
 };
 
+class JackInput;
+
+int jack_proc(jack_nframes_t nframes, void *arg) {
+    JackInput * in_inst = (JackInput*) arg;
+    printf("Got %d frames from jack, port name: %s\n", nframes, in_inst->dst_port);
+    return 0;
+}
 class JackInput : public Input {
     public:
-        bool single_chan;
-        char * chan_name;
-        JackInput(SoundPatty * inst, const bool single_chan, const void * args) {
-            // single_chan = (true|false) must be set before calling this function
-            char * chan_name = (char*) args;
-            this->single_chan = single_chan;
-            // Open up a port
-            if (single_chan) {
+        jack_client_t * client;
+        char *src_port;
+        const char *dst_port;
+
+        JackInput(SoundPatty * inst, const void * args) {
+            char * src_chan = (char*) args;
+            // Open up a port and connect to given
+            ostringstream dst_port_str, dst_client_str;
+
+            dst_port_str << "sp_port_" << getpid();
+            dst_client_str << "sp_client_" << getpid();
+
+            dst_port = string(dst_port_str.str()).c_str();
+
+            if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
+                fatal ((void*)"jack server not running?\n");
             }
+            printf("New port name: %s\n", dst_port);
+            jack_set_process_callback(client, jack_proc, (void*)this);
+
+            sleep(10);
         }
 };
 
@@ -321,10 +344,7 @@ int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
             _input = new WavInput(this, input_params);
             break;
         case SRC_JACK_ONE:
-            _input = new JackInput(this, true, input_params);
-            break;
-        case SRC_JACK_AUTO:
-            _input = new JackInput(this, false, input_params);
+            _input = new JackInput(this, input_params);
             break;
     }
     return 0;
@@ -349,7 +369,6 @@ int SoundPatty::go() {
                 }
             }
         }
-
 
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
             //printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
@@ -410,7 +429,6 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
                     ret -> place = (double)V->tail/_input->SAMPLE_RATE;
                     ret -> sec = (double)(V->head - V->tail)/_input->SAMPLE_RATE;
                     ret -> b = gMCounter++;
-                    //callback(v, (double)V->tail/_input->SAMPLE_RATE, (double)(V->head - V->tail)/_input->SAMPLE_RATE, gMCounter++);
                     return 1;
                 } 
                 // ------------------------------------------------------------
@@ -528,8 +546,11 @@ int main (int argc, char *argv[]) {
     if (argc == 3) { // Dump out via WAV
         pat->setAction(ACTION_DUMP);
     }
-    if (argc == 4) { // Catch
+    if (argc == 4 || argc == 5) { // Catch WAV or Jack
         pat->setAction(ACTION_CATCH, argv[2], its_over);
+    }
+    if (argc == 5) { // Catch Jack
+        pat->setInput(SRC_JACK_ONE, argv[4]);
     }
     pat->go();
 
