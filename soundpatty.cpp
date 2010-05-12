@@ -121,8 +121,11 @@ class Input {
         SoundPatty * _sp_inst;
 };
 
+vector<string> explode(const string &delimiter, const string &str); 
+
 class SoundPatty {
     public:
+        void read_captured_values(const char *);
         SoundPatty(const char * fn) { 
             gSCounter = gMCounter = 0;
             read_cfg(fn);
@@ -130,8 +133,9 @@ class SoundPatty {
         void setAction(int action) {
             _action = action;
         }
-        void setAction(int action, void (*fn)(double)) {
+        void setAction(int action, char * cfg, void (*fn)(double)) {
             _action = action;
+            read_captured_values(cfg);
             _callback = fn; // What to do when we catch a pattern
         }
         static void dump_out(const treshold_t args) {/*{{{*/
@@ -324,6 +328,7 @@ int SoundPatty::go() {
                 }
                 if (_action == ACTION_CATCH) {
                     SoundPatty::do_checking(ret);
+                    //SoundPatty::dump_out(ret);
                 }
             }
         }
@@ -335,6 +340,28 @@ int SoundPatty::go() {
         }
     }
 }
+
+void SoundPatty::read_captured_values(const char * filename) {/*{{{*/
+        ifstream file;
+        file.open(filename);
+        string line;
+        for (int i = 0; !file.eof(); i++) {
+            getline(file, line);
+            if (line.size() == 0) break;
+            vector<string> numbers = explode(";", line);
+            istringstream num(numbers[0]);
+            istringstream place(numbers[1]);
+            istringstream range(numbers[2]);
+
+            double tmp2;
+            pair<pair<int, Range>,valsitm_t > tmp;
+            num >> tmp2; tmp.first.first = tmp2; // Index in volume
+            range >> tmp2; tmp.first.second = Range(tmp2);
+            place >> tmp.second.place; // Place in the stream
+            tmp.second.c = i; // Counter in the stream
+            vals.insert(tmp);
+        }
+}/*}}}*/
 int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * ret) {/*{{{*/
     int v = 0; // Counter for volume
     for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
@@ -393,13 +420,13 @@ treshold_t * SoundPatty::do_checking(const treshold_t tr) {/*{{{*/
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Iterate through pa
 
-    vals_t fina; // FoundInA
-
+    int b = tr.b; vals_t fina; // FoundInA
     Range demorange(tr.sec);
-    pair<int,Range> sample(tr.r,demorange);
+    pair<int,Range> sample(tr.r, demorange);
     for (vals_t::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
-        if (it1->first == sample)
+        if (it1->first == sample) {
             fina.insert(*it1);
+        }
     }
     //------------------------------------------------------------
     // We put a indexes here that we use for continued threads
@@ -414,7 +441,7 @@ treshold_t * SoundPatty::do_checking(const treshold_t tr) {/*{{{*/
     for (vals_t::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
     {
         //printf("%d %.6f matches %.6f (%d)\n", in_a->first.first, sec, in_a->first.second.tm, in_a->second.c);
-        int a = in_a->second.c, b = tr.b;
+        int a = in_a->second.c;
         //------------------------------------------------------------
         // Check if it exists in our work array
         //
@@ -447,6 +474,29 @@ treshold_t * SoundPatty::do_checking(const treshold_t tr) {/*{{{*/
         }
     }
 }/*}}}*/
+vector<string> explode(const string &delimiter, const string &str) { // Found somewhere on NET/*{{{*/
+
+    vector<string> arr;
+    int strleng = str.length();
+    int delleng = delimiter.length();
+    if (delleng == 0)
+        return arr; //no change
+    int i = 0, k = 0;
+    while (i < strleng) {
+        int j = 0;
+        while (i+j < strleng && j < delleng && str[i+j] == delimiter[j])
+            j++;
+        if (j == delleng) {
+            arr.push_back(str.substr(k, i-k));
+            i += delleng;
+            k = i;
+        } else {
+            i++;
+        }
+    }
+    arr.push_back(str.substr(k, i-k));
+    return arr;
+};/*}}}*/
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
@@ -462,7 +512,7 @@ int main (int argc, char *argv[]) {
         pat->setAction(ACTION_DUMP);
     }
     if (argc == 4) { // Catch
-        pat->setAction(ACTION_CATCH, its_over);
+        pat->setAction(ACTION_CATCH, argv[2], its_over);
     }
     pat->go();
 
