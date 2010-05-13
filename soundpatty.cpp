@@ -1,305 +1,31 @@
-/*  
- *  readit.cpp
- *
- *  Copyright (c) 2010 Motiejus Jakštys
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 3.
 
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+#include "soundpatty.h"
+#include "input.h"
 
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
-#include <math.h>
-#include <algorithm>
-#include <stdlib.h>
-#include <cstdio>
-#include <map>
-#include <set>
-#include <list>
-#include <vector>
-#include <string>
-#include <string.h>
-#include <iostream>
-#include <sstream>
-#include <fstream>
-
-#include <jack/jack.h>
-
-#include <sys/types.h>
-#include <unistd.h>
-
-using namespace std;
-
-#define SRC_WAV 0
-#define SRC_JACK_ONE 1
-#define SRC_JACK_AUTO 2
-#define ACTION_DUMP 0
-#define ACTION_CATCH 1
-
-#define BUFFERSIZE 1
-
-
-void fatal(void * r) {
-    char * msg = (char*) r;
-    printf (msg);
-    exit (1);
-};
-void fatal(char * msg) {
-    printf (msg);
-    exit (1);
-}
-
-void its_over(double place) {
-    printf("FOUND, processed %.6f sec\n", place);
-    exit(0);
-}
-class Range {/*{{{*/
-    public:
-        Range() { tm = tmin = tmax = 0; };
-        Range(const double & a) { tm = a; tmin = a * 0.89; tmax = a * 1.11; }
-        Range(const double & tmin, const double &tm, const double &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
-        Range(const double & tmin, const double &tmax) { this->tmin = tmin; this->tmax = tmax; }
-        Range operator = (const double i) { return Range(i); }
-        bool operator == (const double & i) const { return tmin < i && i < tmax; }
-        bool operator == (const Range & r) const { return r == tm; }
-        bool operator > (const double & i) const { return i > tmax; }
-        bool operator > (const Range & r) const { return r > tm; }
-        bool operator < (const double & i) const { return i < tmin; }
-        bool operator < (const Range & r) const { return r < tm; }
-        double tmin, tm, tmax;
-};
-typedef struct {
-    jack_default_audio_sample_t * buf;
-    jack_nframes_t nframes;
-} buffer;
-
-class workitm {
-    public:
-        int len,a;
-        unsigned long b;
-
-        workitm(int, unsigned long);
-        list<pair<int, unsigned long> > trace;
+void SoundPatty::dump_out(const treshold_t args) { // STATIC
+    printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
 };
 
-workitm::workitm(const int a, const unsigned long b) {
-    this->a = a; this->b = b;
-    len = 0;
-    trace.push_back(pair<int,unsigned long>(a,b));
+
+void SoundPatty::setAction(int action, char * cfg, void (*fn)(double)) {
+    _action = action;
+    read_captured_values(cfg);
+    _callback = fn; // What to do when we catch a pattern
 };
 
-struct sVolumes {
-    unsigned long head, tail;
-	jack_default_audio_sample_t min, max;
-    bool proc;
+
+void SoundPatty::setAction(int action) {
+    _action = action;
 };
 
-struct valsitm_t {
-    int c; // Counter in map
-    double place;
-};
-struct treshold_t {
-    int r;
-    double place, sec;
-    unsigned long b;
+
+SoundPatty::SoundPatty(const char * fn) { 
+    gSCounter = gMCounter = 0;
+    read_cfg(fn);
 };
 
-typedef multimap<pair<int, Range>, valsitm_t> vals_t;/*}}}*/
 
-class SoundPatty;
-class Input {
-    public:
-        int SAMPLE_RATE, DATA_SIZE;
-        virtual buffer * giveInput(buffer *) {
-            fatal((void*)"giveInput not implemented, exiting\n");
-        };
-        virtual void test() {
-            printf("Called Input\n");
-        }
-    protected:
-        SoundPatty * _sp_inst;
-};
-
-vector<string> explode(const string &delimiter, const string &str); 
-
-class SoundPatty {
-    public:
-        void read_captured_values(const char *);
-        SoundPatty(const char * fn) { 
-            gSCounter = gMCounter = 0;
-            read_cfg(fn);
-        };
-        void setAction(int action) {
-            _action = action;
-        }
-        void setAction(int action, char * cfg, void (*fn)(double)) {
-            _action = action;
-            read_captured_values(cfg);
-            _callback = fn; // What to do when we catch a pattern
-        }
-        static void dump_out(const treshold_t args) {/*{{{*/
-            printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
-        }/*}}}*/
-        treshold_t * do_checking(const treshold_t args);
-        map<string, double> cfg;
-        int setInput(int, void*);
-        int go();
-        int WAVE, CHUNKSIZE;
-        unsigned long gMCounter, // How many matches we found
-                      gSCounter; // How many samples we skipped
-        int search_patterns (jack_default_audio_sample_t cur, treshold_t *);
-        vector<sVolumes> volume;
-    private:
-        int _action;
-        void (*_callback)(double);
-        list<workitm> work;
-        vals_t vals;
-        Input * _input;
-        int read_cfg(const char*);
-        int source_app;
-        char *input_params;
-};
-
-class WavInput : public Input {
-    public:
-        WavInput(SoundPatty * inst, const void * args) {
-            _sp_inst = inst;
-            char * filename = (char*) args;
-            process_headers(filename);
-            // ------------------------------------------------------------
-            // Adjust _sp_ volume 
-            // Jack has float (-1..1) while M$ WAV has (-2^15..2^15)
-            //
-            for (vector<sVolumes>::iterator vol = _sp_inst->volume.begin(); vol != _sp_inst->volume.end(); vol++) {
-                vol->min *= (1<<15);
-                vol->max *= (1<<15);
-            }
-        }
-
-        buffer * giveInput(buffer *buf_prop) {
-            int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
-            if (feof(_fh)) {
-                return NULL;
-            }
-            size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
-
-            // :HACK: fix this, do not depend on jack types where you don't need!
-            jack_default_audio_sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
-            for(int i = 0; i < read_size; i++) {
-                buf2[i] = (jack_default_audio_sample_t)buf[i];
-            }
-            buf_prop->buf = buf2;
-            buf_prop->nframes = read_size;
-            return buf_prop;
-        }
-    protected:
-        int process_headers(const char * infile) {/*{{{*/
-            char errmsg[200];
-
-            _fh = fopen(infile, "rb");
-            if (_fh == NULL) {
-                sprintf(errmsg, "Failed to open file %s, exiting\n", infile);
-                fatal(errmsg);
-            }
-
-            // Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
-            char header[5];
-            fread(header, 1, 4, _fh);
-
-            char sample[] = "RIFF";
-            if (! check_sample(sample, header) ) {
-                sprintf(errmsg, "RIFF header not found in %s, exiting\n", infile);
-                fatal(errmsg);
-            }
-            // Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
-            uint16_t tmp[2]; // two-byte integer
-            fseek(_fh, 0x14, 0); // offset = 20 bytes
-            fread(&tmp, 2, 2, _fh); // Reading two two-byte samples (comp. code and no. of channels)
-            if ( tmp[0] != 1 ) {
-                sprintf(errmsg, "Only PCM(1) supported, compression code given: %d\n", tmp[0]);
-                fatal (errmsg);
-            }
-            // Number of channels must be "MONO"
-            if ( tmp[1] != 1 ) {
-                sprintf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
-                fatal (errmsg);
-            }
-            fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
-            _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
-            _sp_inst->CHUNKSIZE = _sp_inst->cfg["chunklen"] * (int)SAMPLE_RATE;
-            fseek(_fh, 0x22, 0);
-            uint16_t BitsPerSample;
-            fread(&BitsPerSample, 1, 2, _fh);
-            if (BitsPerSample != 16) {
-                sprintf(errmsg, "Only 16-bit WAVs supported, given: %d\n", BitsPerSample);
-                fatal(errmsg);
-            }
-            // Get data chunk size here
-            fread(header, 1, 4, _fh);
-            strcpy(sample, "data");
-
-            if (! check_sample(sample, header)) {
-                fatal ((void*)"data chunk not found in byte offset=36, file corrupted.");
-            }
-            int DATA_SIZE;
-            fread(&DATA_SIZE, 4, 1, _fh); // Single two-byte sample
-            return 0;
-        }
-
-        bool check_sample (const char * sample, const char * b) { // My STRCPY.
-            for(int i = 0; sample[i] != '\0'; i++) {
-                if (sample[i] != b[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }/*}}}*/
-    private:
-        FILE *_fh;
-
-};
-
-class JackInput;
-
-int jack_proc(jack_nframes_t nframes, void *arg) {
-    JackInput * in_inst = (JackInput*) arg;
-    printf("Got %d frames from jack, port name: %s\n", nframes, in_inst->dst_port);
-    return 0;
-}
-class JackInput : public Input {
-    public:
-        jack_client_t * client;
-        char *src_port;
-        const char *dst_port;
-
-        JackInput(SoundPatty * inst, const void * args) {
-            char * src_chan = (char*) args;
-            // Open up a port and connect to given
-            ostringstream dst_port_str, dst_client_str;
-
-            dst_port_str << "sp_port_" << getpid();
-            dst_client_str << "sp_client_" << getpid();
-
-            dst_port = string(dst_port_str.str()).c_str();
-
-            if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
-                fatal ((void*)"jack server not running?\n");
-            }
-            printf("New port name: %s\n", dst_port);
-            jack_set_process_callback(client, jack_proc, (void*)this);
-
-            sleep(10);
-        }
-};
-
-int SoundPatty::read_cfg (const char * filename) {/*{{{*/
+int SoundPatty::read_cfg (const char * filename) {
     ifstream file;
     file.open(filename);
     string line;
@@ -325,7 +51,7 @@ int SoundPatty::read_cfg (const char * filename) {/*{{{*/
             int i; tmp >> i;
             max_index = max(max_index, i);
             // C->second and volume[i].m{in,ax} are double
-            if (C->first.find("_min") != -1) {
+            if (C->first.find("_min") != string::npos) {
                 volume[i].min = C->second;
             } else {
                 volume[i].max = C->second;
@@ -334,8 +60,10 @@ int SoundPatty::read_cfg (const char * filename) {/*{{{*/
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
     return 0;
-}/*}}}*/
-int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
+};
+
+
+int SoundPatty::setInput(const int source_app, void * input_params) {
     if (0 <= source_app && source_app <= 2) {
         this->source_app = source_app;
     }
@@ -348,15 +76,17 @@ int SoundPatty::setInput(const int source_app, void * input_params) {/*{{{*/
             break;
     }
     return 0;
-}/*}}}*/
-int SoundPatty::go() {
+};
+
+
+void SoundPatty::go() {
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
-    buffer buf;
+    buffer_t buf;
 
     while (_input->giveInput(&buf) != NULL) { // Have pointer to data
         treshold_t ret;
 
-        for (int i = 0; i < buf.nframes; gSCounter++, i++) {
+        for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
             jack_default_audio_sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
             if (search_patterns(cur, &ret))
             {
@@ -372,12 +102,13 @@ int SoundPatty::go() {
 
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
             //printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
-            return 0;
+            return;
         }
     }
-}
+};
 
-void SoundPatty::read_captured_values(const char * filename) {/*{{{*/
+
+void SoundPatty::read_captured_values(const char * filename) {
         ifstream file;
         file.open(filename);
         string line;
@@ -397,8 +128,10 @@ void SoundPatty::read_captured_values(const char * filename) {/*{{{*/
             tmp.second.c = i; // Counter in the stream
             vals.insert(tmp);
         }
-}/*}}}*/
-int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * ret) {/*{{{*/
+};
+
+
+int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * ret) {
     int v = 0; // Counter for volume
     for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
         if (V->min <= cur && cur <= V->max) {
@@ -439,8 +172,10 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
         }
     }
     return 0;
-}/*}}}*/
-// --------------------------------------------------------------------------------/*{{{*/
+};
+
+
+// --------------------------------------------------------------------------------
 // This gets called every time there is a treshold found.
 // Work array is global
 //
@@ -448,14 +183,14 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
 // double place - place of sample from the stream start (sec)
 // double sec - length of a found sample (sec)
 // int b - index (overall) of sample found
-///*}}}*/
-treshold_t * SoundPatty::do_checking(const treshold_t tr) {/*{{{*/
+//
+void SoundPatty::do_checking(const treshold_t tr) {
 
     //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Iterate through pa
 
-    int b = tr.b; vals_t fina; // FoundInA
+    unsigned long b = tr.b; vals_t fina; // FoundInA
     Range demorange(tr.sec);
     pair<int,Range> sample(tr.r, demorange);
     for (vals_t::iterator it1 = vals.begin(); it1 != vals.end(); it1++) {
@@ -508,8 +243,10 @@ treshold_t * SoundPatty::do_checking(const treshold_t tr) {/*{{{*/
             //printf ("Pushed back %d %d\n", a,b);
         }
     }
-}/*}}}*/
-vector<string> explode(const string &delimiter, const string &str) { // Found somewhere on NET/*{{{*/
+};
+
+
+vector<string> explode(const string &delimiter, const string &str) { // Found somewhere on NET
 
     vector<string> arr;
     int strleng = str.length();
@@ -531,28 +268,24 @@ vector<string> explode(const string &delimiter, const string &str) { // Found so
     }
     arr.push_back(str.substr(k, i-k));
     return arr;
-};/*}}}*/
+};
 
-int main (int argc, char *argv[]) {
-    if (argc < 3) {
-        fatal ((void*)"Usage: ./readit config.cfg sample.wav\nor\n"
-                "./readit config.cfg samplefile.txt catchable.wav\n"
-                "./readit config.cfg samplefile.txt jack jack\n");
-    }
-    SoundPatty * pat = new SoundPatty(argv[1]); // usually config.cfg
-    if (argc == 3 || argc == 4) { // WAV
-        pat->setInput(SRC_WAV, argv[argc - 1]);
-    }
-    if (argc == 3) { // Dump out via WAV
-        pat->setAction(ACTION_DUMP);
-    }
-    if (argc == 4 || argc == 5) { // Catch WAV or Jack
-        pat->setAction(ACTION_CATCH, argv[2], its_over);
-    }
-    if (argc == 5) { // Catch Jack
-        pat->setInput(SRC_JACK_ONE, argv[4]);
-    }
-    pat->go();
 
-    exit(0);
-}
+void fatal(void * r) {
+    char * msg = (char*) r;
+    printf (msg);
+    exit (1);
+};
+
+
+void fatal(char * msg) {
+    printf (msg);
+    exit (1);
+};
+
+
+workitm::workitm(const int a, const unsigned long b) {
+    this->a = a; this->b = b;
+    len = 0;
+    trace.push_back(pair<int,unsigned long>(a,b));
+};
