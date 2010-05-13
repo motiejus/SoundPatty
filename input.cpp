@@ -36,9 +36,6 @@ int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
     return 0;
 };
 
-pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  condition_cond  = PTHREAD_COND_INITIALIZER;
-
 JackInput::JackInput(SoundPatty * inst, const void * args) {
     data_in;
     pthread_mutex_init(&data_mutex, NULL);

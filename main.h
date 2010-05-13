@@ -1,5 +1,5 @@
-#ifndef __SP_MAIN_HPP_INCLUDED__
-#define __SP_MAIN_HPP_INCLUDED__
+#ifndef __SP_MAIN_H_INCLUDED__
+#define __SP_MAIN_H_INCLUDED__
 
 using namespace std;
 
@@ -31,4 +31,4 @@ using namespace std;
 #define BUFFERSIZE 1
 
 
-#endif //__SP_MAIN_HPP_INCLUDED__
+#endif //__SP_MAIN_H_INCLUDED__

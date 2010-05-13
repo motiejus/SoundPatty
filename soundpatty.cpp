@@ -37,13 +37,16 @@ void SoundPatty::setAction(int action) {
 };
 
 
-SoundPatty::SoundPatty(const char * fn) { 
+SoundPatty::SoundPatty(all_cfg_t all_cfg) { 
+	cfg = all_cfg.first;
+	volume = all_cfg.second;
     gSCounter = gMCounter = 0;
-    read_cfg(fn);
 };
 
 
-int SoundPatty::read_cfg (const char * filename) {
+all_cfg_t SoundPatty::read_cfg (const char * filename) {
+	map<string,double> cfg;
+	vector<sVolumes> volume;
     ifstream file;
     file.open(filename);
     string line;
@@ -56,11 +59,10 @@ int SoundPatty::read_cfg (const char * filename) {
         double tmp; i >> tmp;
         cfg[line.substr(0,x)] = tmp;
     }
-    // Change cfg["treshold\d+_(min|max)"] to
-    // something more compatible with sVolumes map
+
     sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
-    volume.assign(cfg.size(), tmp); // Make a bit more then nescesarry
+    volume.assign(cfg.size(), tmp); // Assign a bit more then nescesarry
     int max_index = 0; // Number of different tresholds
     for(map<string, double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
         // Failed to use boost::regex :(
@@ -68,7 +70,6 @@ int SoundPatty::read_cfg (const char * filename) {
             istringstream tmp(C->first.substr(8));
             int i; tmp >> i;
             max_index = max(max_index, i);
-            // C->second and volume[i].m{in,ax} are double
             if (C->first.find("_min") != string::npos) {
                 volume[i].min = C->second;
             } else {
@@ -77,7 +78,7 @@ int SoundPatty::read_cfg (const char * filename) {
         }
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
-    return 0;
+	return all_cfg_t(cfg, volume);
 };
 
 
@@ -92,10 +93,12 @@ int SoundPatty::setInput(const int source_app, void * input_params) {
         case SRC_JACK_ONE:
             _input = new JackInput(this, input_params);
             break;
+		case SRC_JACK_AUTO:
+			_input = new JackInput(this, input_params);
+			break;
     }
     return 0;
 };
-
 
 void SoundPatty::go() {
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");

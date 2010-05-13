@@ -66,11 +66,14 @@ class workitm {
         list<pair<int, unsigned long> > trace;
 };
 
+typedef pair<map<string,double>, vector<sVolumes> > all_cfg_t;
+
 class Input;
 class SoundPatty {
     public:
+        static all_cfg_t read_cfg(const char*);
         void read_captured_values(const char *);
-        SoundPatty(const char * fn);
+        SoundPatty(all_cfg_t);
         void setAction(int action);
         void setAction(int action, char * cfg, void (*fn)(double));
         static void dump_out(const treshold_t args);
@@ -89,7 +92,6 @@ class SoundPatty {
         list<workitm> work;
         vals_t vals;
         Input * _input;
-        int read_cfg(const char*);
         int source_app;
         char *input_params;
 };

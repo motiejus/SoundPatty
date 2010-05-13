@@ -31,7 +31,10 @@ int main (int argc, char *argv[]) {
                 "./readit config.cfg samplefile.txt catchable.wav\n"
                 "./readit config.cfg samplefile.txt jack jack\n");
     }
-    SoundPatty * pat = new SoundPatty(argv[1]); // usually config.cfg
+
+	all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
+    SoundPatty * pat = new SoundPatty(this_cfg);
+
     if (argc == 3 || argc == 4) { // WAV
         pat->setInput(SRC_WAV, argv[argc - 1]);
     }
@@ -44,6 +47,7 @@ int main (int argc, char *argv[]) {
     if (argc == 5) { // Catch Jack
         pat->setInput(SRC_JACK_ONE, argv[4]);
     }
+	// Hmm if more - we can create new SoundPatty instances right here! :-)
     pat->go();
 
     exit(0);
