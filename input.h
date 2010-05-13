@@ -35,10 +35,10 @@ class JackInput : public Input {
         string dst_port_name;
 
         JackInput(SoundPatty * inst, const void * args);
-    private:
-        jack_port_t * dst_port, * src_port;
         pthread_mutex_t data_mutex;
         pthread_cond_t  condition_cond;
+    private:
+        jack_port_t * dst_port, * src_port;
 
         list<buffer_t> data_in;
 };

@@ -94,13 +94,12 @@ void SoundPatty::go() {
                 }
                 if (_action == ACTION_CATCH) {
                     SoundPatty::do_checking(ret);
-                    //SoundPatty::dump_out(ret);
                 }
             }
         }
 
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
-            //printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
+            printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
             return;
         }
     }

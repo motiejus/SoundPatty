@@ -5,10 +5,8 @@
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
 
-    printf ("This is me with some data! Locking mutex.\n");
     JackInput * in_inst = (JackInput*) arg;
     pthread_mutex_lock(&in_inst->data_mutex);
-    printf ("Mutex locked in jack_proc, pushing to in_inst->data_in. Size: %d\n", in_inst->data_in.size());
 
     buffer_t buffer;
     buffer.buf = (jack_default_audio_sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
@@ -20,11 +18,13 @@ int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
     return 0;
 };
 
+pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  condition_cond  = PTHREAD_COND_INITIALIZER;
 
 JackInput::JackInput(SoundPatty * inst, const void * args) {
     data_in;
-    data_mutex = PTHREAD_MUTEX_INITIALIZER;
-    condition_cond  = PTHREAD_COND_INITIALIZER;
+    pthread_mutex_init(&data_mutex, NULL);
+	pthread_cond_init(&condition_cond, NULL);
 
     _sp_inst = inst;
     char * src_port_name = (char*) args;
@@ -61,17 +61,13 @@ JackInput::JackInput(SoundPatty * inst, const void * args) {
 int JackInput::giveInput(buffer_t *buffer) {
     // Create a new thread and wait for input. When get a buffer - return back.
 
-    printf("I am in giveInput before locking the mutex\n");
     pthread_mutex_lock(&data_mutex);
-    printf("I am in giveInput, the mutex is locked!\n");
     pthread_cond_wait(&condition_cond, &data_mutex);
-    printf("Size of *buffer: %d bytes.\n", sizeof(*buffer));
-    printf("Size of data: %d\n", data_in.size());
 
     memcpy((void*)buffer, (void*)&data_in.front(), sizeof(*buffer)); // Copy all buffer data blindly
     data_in.pop_front(); // Remove the processed waiting member
     pthread_mutex_unlock(&data_mutex);
-    return 0;
+    return 1;
 }
 
 int WavInput::giveInput(buffer_t *buf_prop) {
