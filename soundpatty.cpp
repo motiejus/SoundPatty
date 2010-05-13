@@ -1,4 +1,3 @@
-
 #include "soundpatty.h"
 #include "input.h"
 
@@ -83,7 +82,7 @@ void SoundPatty::go() {
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer_t buf;
 
-    while (_input->giveInput(&buf) != NULL) { // Have pointer to data
+    while (_input->giveInput(&buf) != 0) { // Have pointer to data
         treshold_t ret;
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {

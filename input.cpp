@@ -3,16 +3,97 @@
 #include "input.h"
 #include "soundpatty.h"
 
-bool WavInput::check_sample (const char * sample, const char * b) { // My STRCPY.
-    for(int i = 0; sample[i] != '\0'; i++) {
-        if (sample[i] != b[i]) {
-            return false;
-        }
-    }
-    return true;
+int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
+
+    printf ("This is me with some data! Locking mutex.\n");
+    JackInput * in_inst = (JackInput*) arg;
+    pthread_mutex_lock(&in_inst->data_mutex);
+    printf ("Mutex locked in jack_proc, pushing to in_inst->data_in. Size: %d\n", in_inst->data_in.size());
+
+    buffer_t buffer;
+    buffer.buf = (jack_default_audio_sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
+    buffer.nframes = nframes;
+    in_inst->data_in.push_back(buffer);
+    pthread_cond_signal(&in_inst->condition_cond);
+    pthread_mutex_unlock(&in_inst->data_mutex);
+
+    return 0;
 };
 
 
+JackInput::JackInput(SoundPatty * inst, const void * args) {
+    data_in;
+    data_mutex = PTHREAD_MUTEX_INITIALIZER;
+    condition_cond  = PTHREAD_COND_INITIALIZER;
+
+    _sp_inst = inst;
+    char * src_port_name = (char*) args;
+
+    ostringstream dst_port_str, dst_client_str;
+
+    dst_client_str << "sp_client_" << getpid();
+
+    if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
+        fatal ((void*)"jack server not running?\n");
+    }
+
+    jack_set_process_callback(client, JackInput::jack_proc, (void*)this);
+
+    if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
+
+    jack_on_shutdown(client, &fatal, (void*)"Jack server shut us down!");
+
+    SAMPLE_RATE = jack_get_sample_rate (client);
+
+    _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
+
+    _sp_inst->CHUNKSIZE = _sp_inst->cfg["chunklen"] * (int)SAMPLE_RATE;
+    dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+
+    if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
+        char errmsg[200];
+        sprintf(errmsg, "Failed to connect %s to %s, exiting.\n", src_port_name, jack_port_name(dst_port));
+        fatal((void*)errmsg);
+    }
+};
+
+
+int JackInput::giveInput(buffer_t *buffer) {
+    // Create a new thread and wait for input. When get a buffer - return back.
+
+    printf("I am in giveInput before locking the mutex\n");
+    pthread_mutex_lock(&data_mutex);
+    printf("I am in giveInput, the mutex is locked!\n");
+    pthread_cond_wait(&condition_cond, &data_mutex);
+    printf("Size of *buffer: %d bytes.\n", sizeof(*buffer));
+    printf("Size of data: %d\n", data_in.size());
+
+    memcpy((void*)buffer, (void*)&data_in.front(), sizeof(*buffer)); // Copy all buffer data blindly
+    data_in.pop_front(); // Remove the processed waiting member
+    pthread_mutex_unlock(&data_mutex);
+    return 0;
+}
+
+int WavInput::giveInput(buffer_t *buf_prop) {
+    int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
+    if (feof(_fh)) {
+        return 0;
+    }
+    size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
+
+    // :HACK: fix this, do not depend on jack types where you don't need!
+    jack_default_audio_sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
+    for(unsigned int i = 0; i < read_size; i++) {
+        buf2[i] = (jack_default_audio_sample_t)buf[i];
+    }
+    buf_prop->buf = buf2;
+    buf_prop->nframes = read_size;
+    return 1;
+};
+
+
+
+/// WavInput here ///
 int WavInput::process_headers(const char * infile) {
     char errmsg[200];
 
@@ -67,21 +148,13 @@ int WavInput::process_headers(const char * infile) {
 };
 
 
-buffer_t * WavInput::giveInput(buffer_t *buf_prop) {
-    int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
-    if (feof(_fh)) {
-        return NULL;
+bool WavInput::check_sample (const char * sample, const char * b) { // My STRCPY.
+    for(int i = 0; sample[i] != '\0'; i++) {
+        if (sample[i] != b[i]) {
+            return false;
+        }
     }
-    size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
-
-    // :HACK: fix this, do not depend on jack types where you don't need!
-    jack_default_audio_sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
-    for(unsigned int i = 0; i < read_size; i++) {
-        buf2[i] = (jack_default_audio_sample_t)buf[i];
-    }
-    buf_prop->buf = buf2;
-    buf_prop->nframes = read_size;
-    return buf_prop;
+    return true;
 };
 
 
@@ -100,22 +173,3 @@ WavInput::WavInput(SoundPatty * inst, const void * args) {
 };
 
 
-JackInput::JackInput(SoundPatty * inst, const void * args) {
-    //char * src_chan = (char*) args;
-    // Open up a port and connect to given
-    ostringstream dst_port_str, dst_client_str;
-
-    dst_port_str << "sp_port_" << getpid();
-    dst_client_str << "sp_client_" << getpid();
-
-    dst_port = string(dst_port_str.str()).c_str();
-
-    if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
-        fatal ((void*)"jack server not running?\n");
-    }
-
-    printf("New port name: %s\n", dst_port);
-    jack_set_process_callback(client, &jack_proc, (void*)this);
-
-    sleep(10);
-};

@@ -1,4 +1,3 @@
-
 #ifndef __SOUNDPATTY_H_INCLUDED__
 #define __SOUNDPATTY_H_INCLUDED__
 

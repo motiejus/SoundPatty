@@ -1,13 +1,15 @@
 # vim: set noet:
 
+DEPS=`pkg-config --libs jack` -lpthread -std=gnu++0x -g
+
 main: main.o soundpatty.o input.o
-	g++ -Wall `pkg-config --libs jack` main.o soundpatty.o input.o -o main
-main.o: main.cpp
-	g++ -Wall `pkg-config --libs jack` -c main.cpp
-soundpatty.o: soundpatty.cpp
-	g++ -Wall `pkg-config --libs jack` -c soundpatty.cpp
-input.o: input.cpp
-	g++ -Wall `pkg-config --libs jack` -c input.cpp
+	g++ ${DEPS} main.o soundpatty.o input.o -o main
+main.o: main.cpp main.h soundpatty.h
+	g++ ${DEPS} -c main.cpp
+soundpatty.o: soundpatty.cpp soundpatty.h
+	g++ ${DEPS} -c soundpatty.cpp
+input.o: input.cpp main.h input.h soundpatty.h
+	g++ ${DEPS} -c input.cpp
 clean:
 	rm -f main soundpatty.o input.o main.o
 

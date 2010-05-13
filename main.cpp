@@ -17,13 +17,7 @@
  */
 
 #include "main.h"
-#include "input.h"
-int jack_proc(jack_nframes_t nframes, void *arg) {
-    JackInput * in_inst = (JackInput*) arg;
-    printf("Got %d frames from jack, port name: %s\n", nframes, in_inst->dst_port);
-    return 0;
-};
-
+#include "soundpatty.h"
 
 void its_over(double place) {
     printf("FOUND, processed %.6f sec\n", place);

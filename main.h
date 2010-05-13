@@ -1,4 +1,3 @@
-
 #ifndef __SP_MAIN_HPP_INCLUDED__
 #define __SP_MAIN_HPP_INCLUDED__
 
@@ -31,6 +30,5 @@ using namespace std;
 
 #define BUFFERSIZE 1
 
-int jack_proc(jack_nframes_t nframes, void *arg);
 
 #endif //__SP_MAIN_HPP_INCLUDED__
