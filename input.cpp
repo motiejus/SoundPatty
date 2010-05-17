@@ -54,16 +54,14 @@ JackInput::JackInput(SoundPatty * inst, const void * args) {
 
     jack_set_process_callback(client, JackInput::jack_proc, (void*)this);
 
-    if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
-
-    jack_on_shutdown(client, &fatal, (void*)"Jack server shut us down!");
-
     SAMPLE_RATE = jack_get_sample_rate (client);
 
     _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
 
     _sp_inst->CHUNKSIZE = _sp_inst->cfg["chunklen"] * (int)SAMPLE_RATE;
     dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+
+    if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
         char errmsg[200];

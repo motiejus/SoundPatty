@@ -30,5 +30,4 @@ using namespace std;
 
 #define BUFFERSIZE 1
 
-
 #endif //__SP_MAIN_H_INCLUDED__
