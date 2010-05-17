@@ -121,7 +121,6 @@ void SoundPatty::go() {
         }
 
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
-            printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
             return;
         }
     }

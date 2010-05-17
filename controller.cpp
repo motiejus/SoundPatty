@@ -46,7 +46,8 @@ void *go_sp(void *port_name_a) {
         fatal((void*)"Problems with pipe");
     }
 
-    fgets( line, sizeof line, fpipe);
+	fgets( line, sizeof line, fpipe);
+
     system("date \"+%F %T\" | tr -d '\n\'"); // Date without ENDL
     printf(" *** %s *** ::: %s", port_name, line);
 };
