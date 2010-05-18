@@ -27,8 +27,10 @@ void *connector(void *arg) {
 
             const char *port_name = jack_port_name(port);
             //printf("Got a port to connect to: %s\n", port_name);
-            pthread_t tmp;
-            pthread_create(&tmp, NULL, go_sp, (void*)(port_name));
+            pthread_t tmp; pthread_attr_t attr;
+			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+            pthread_create(&tmp, &attr, go_sp, (void*)(port_name));
             sps.insert(pair<const char*, pthread_t>(port_name, tmp));
 
             pthread_mutex_lock(&p_queue_mutex);
@@ -49,16 +51,16 @@ void *go_sp(void *port_name_a) {
     char command[300];
     sprintf(command, "%s %s %s jack \"%s\"", SP_EXEC, SP_CONF, SP_TRES, port_name);
 
-    char line[200];
+    char line[256];
     if ( !(fpipe = (FILE*)popen(command,"r")) )
     {  // If fpipe is NULL
         fatal((void*)"Problems with pipe");
     }
-	fgets( line, sizeof line, fpipe);
+	fgets( line, sizeof line, fpipe); pclose(fpipe);
 
     fpipe = popen("date \"+%F %T\" | tr -d '\n\'", "r"); // Date without ENDL
     char output[300]; int fd;
-    fgets (output, sizeof output, fpipe);
+    fgets (output, sizeof output, fpipe); pclose(fpipe);
 
     sprintf(output, "%s *** %s *** ::: %s", output, port_name, line);
     write(fd, output, strlen(output)+1);
