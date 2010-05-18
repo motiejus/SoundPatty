@@ -54,13 +54,15 @@ void *go_sp(void *port_name_a) {
     {  // If fpipe is NULL
         fatal((void*)"Problems with pipe");
     }
-
 	fgets( line, sizeof line, fpipe);
 
-    system("date \"+%F %T\" | tr -d '\n\'"); // Date without ENDL
-    char output[200]; int fd;
-    sprintf(output, " *** %s *** ::: %s", port_name, line);
+    fpipe = popen("date \"+%F %T\" | tr -d '\n\'", "r"); // Date without ENDL
+    char output[300]; int fd;
+    fgets (output, sizeof output, fpipe);
+
+    sprintf(output, "%s *** %s *** ::: %s", output, port_name, line);
     write(fd, output, strlen(output)+1);
+    pthread_exit(NULL);
 };
 
 int main () {
@@ -72,8 +74,8 @@ int main () {
     if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
         fatal ((void*)"jack server not running?\n");
     }
+    dst_client_str.~ostringstream();
 
-    //jack_set_port_registration_callback(client, new_port, NULL);
     jack_set_port_connect_callback(client, port_connect, NULL);
     if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
 
