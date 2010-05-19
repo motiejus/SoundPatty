@@ -65,8 +65,6 @@ void *go_sp(void *port_name_a) {
     fgets (output, sizeof output, fpipe); pclose(fpipe);
 
     printf("%s *** %s *** ::: %s", output, port_name, line);
-    //printf(fd, output, strlen(output)+1);
-    pthread_exit(NULL);
 };
 
 int main () {
@@ -85,11 +83,7 @@ int main () {
 
     pthread_t connector1;
     pthread_create(&connector1, NULL, connector, NULL);
-
-    while (1) {
-        sleep (1);
-    }
-    return 0;
+	pthread_exit(NULL); // Pass to Jack and listener thread
 }
 
 void fatal(void * r) {
