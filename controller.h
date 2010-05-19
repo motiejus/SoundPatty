@@ -25,6 +25,7 @@ using namespace std;
 #define SP_EXEC SP_PATH "main"
 #define SP_CONF SP_PATH "config.cfg"
 #define SP_TRES SP_PATH "samplefile.txt"
+#define SP_OVER SP_PATH "over.sh"
 
 jack_client_t *client;
 list<jack_port_t*> p_queue;

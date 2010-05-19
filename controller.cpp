@@ -38,11 +38,6 @@ void *connector(void *arg) {
     }
 };
 
-void its_over(double place) {
-    printf("FOUND, processed %.6f sec\n", place);
-    pthread_exit(NULL);
-};
-
 void *go_sp(void *port_name_a) {
     // Call SoundPatty on this port
     char *port_name = (char*)port_name_a;
@@ -58,7 +53,12 @@ void *go_sp(void *port_name_a) {
         fatal((void*)"Problems with pipe");
     }
 	fgets( line, sizeof line, fpipe); pclose(fpipe);
-    //printf("Command execution over. Returned: %s\n", line);
+    if (strstr(line, "FOUND") != NULL) {
+        // Found... E-mail script output
+        char command[300];
+        sprintf(command, "%s \"%s\" \"%s\"", SP_OVER, port_name, line);
+        system(command);
+    }
 
     fpipe = popen("date \"+%F %T\" | tr -d '\n\'", "r"); // Date without ENDL
     char output[300]; int fd;
