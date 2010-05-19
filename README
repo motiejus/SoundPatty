@@ -21,12 +21,11 @@ Jack (single port):
 	$ ./main config.cfg samplefile.txt jack mp:out_0
 A third option - for automatic port capturing (when you want jack channel to be "hooked" automatically)
 	$ ./controller
-See controller.h for configuration and constants (this has to be re-written, of course)
+See controller.h for configuration and constants (this has to be changed, of course)
 Third option is suitable for VoIP. You need just to open the Jack port with callee (caller) audio and SoundPatty will do everyting else for you :-)
 
 ### TODO ###
 Major:
-* Launch system scripts instead of printfing FOUND or NOT FOUND
 * Make input type dependent on Input sub-class (unsigned int for Wav, jack_default_audio_t for Jack, other for other)
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
 * Test with -O2
