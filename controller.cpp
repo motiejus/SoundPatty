@@ -50,6 +50,7 @@ void *go_sp(void *port_name_a) {
     FILE *fpipe;
     char command[300];
     sprintf(command, "%s %s %s jack \"%s\"", SP_EXEC, SP_CONF, SP_TRES, port_name);
+    //printf("Launching %s\n", command);
 
     char line[256];
     if ( !(fpipe = (FILE*)popen(command,"r")) )
@@ -57,13 +58,14 @@ void *go_sp(void *port_name_a) {
         fatal((void*)"Problems with pipe");
     }
 	fgets( line, sizeof line, fpipe); pclose(fpipe);
+    //printf("Command execution over. Returned: %s\n", line);
 
     fpipe = popen("date \"+%F %T\" | tr -d '\n\'", "r"); // Date without ENDL
     char output[300]; int fd;
     fgets (output, sizeof output, fpipe); pclose(fpipe);
 
-    sprintf(output, "%s *** %s *** ::: %s", output, port_name, line);
-    write(fd, output, strlen(output)+1);
+    printf("%s *** %s *** ::: %s", output, port_name, line);
+    //printf(fd, output, strlen(output)+1);
     pthread_exit(NULL);
 };
 
