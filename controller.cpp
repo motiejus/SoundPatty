@@ -18,7 +18,7 @@ void *go_sp(void *port_name_a) {
     if (strstr(line, "FOUND") != NULL) {
         // Found... E-mail script output
         char command[300];
-        //sprintf(command, "%s \"%s\" \"%s\"", SP_OVER, port_name, line);
+        sprintf(command, "%s \"%s\" \"%s\"", SP_OVER, port_name, line);
         system(command);
     }
 
