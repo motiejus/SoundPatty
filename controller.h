@@ -35,7 +35,6 @@ map<const char*, pthread_t> sps; // SoundPatty instances
 pthread_mutex_t p_queue_mutex;
 pthread_cond_t p_queue_cond;
 
-void *connector(void *arg);
 void *go_sp(void *port_name);
 void new_port(const jack_port_id_t port_id, int registerr, void *arg);
 void fatal(void * r);
