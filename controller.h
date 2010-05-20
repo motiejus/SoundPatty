@@ -38,6 +38,6 @@ pthread_cond_t p_queue_cond;
 void *go_sp(void *port_name);
 void new_port(const jack_port_id_t port_id, int registerr, void *arg);
 void fatal(void * r);
-void fatal(char * msg);
+void fatal(const char * msg);
 
 #endif //__SP_CONTROLLER_H_INCLUDED__

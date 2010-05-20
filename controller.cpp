@@ -7,7 +7,7 @@ void *go_sp(void *port_name_a) {
     FILE *fpipe;
     char command[300];
     sprintf(command, "%s %s %s jack \"%s\"", SP_EXEC, SP_CONF, SP_TRES, port_name);
-    printf("Launching %s\n", command);
+    //printf("Launching %s\n", command);
 
     char line[256];
     if ( !(fpipe = (FILE*)popen(command,"r")) )
@@ -18,7 +18,7 @@ void *go_sp(void *port_name_a) {
     if (strstr(line, "FOUND") != NULL) {
         // Found... E-mail script output
         char command[300];
-        sprintf(command, "%s \"%s\" \"%s\"", SP_OVER, port_name, line);
+        //sprintf(command, "%s \"%s\" \"%s\"", SP_OVER, port_name, line);
         system(command);
     }
 
@@ -38,7 +38,7 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
         return;
     }
     if (!(JackPortIsOutput & jack_port_flags(port_a))) return;
-    printf("Adding to stack a: %s (b: %s)\n", jack_port_name(port_a), jack_port_name(port_b));
+    //printf("Adding to stack a: %s (b: %s)\n", jack_port_name(port_a), jack_port_name(port_b));
     pthread_mutex_lock(&p_queue_mutex);
     p_queue.push_back(port_a);
     pthread_mutex_unlock(&p_queue_mutex);
@@ -69,13 +69,14 @@ int main () {
             pthread_mutex_unlock(&p_queue_mutex);
 
             const char *port_name = jack_port_name(port);
-            printf("Got a port to connect to: %s\n", port_name);
+            //printf("Got a port to connect to: %s\n", port_name);
             pthread_t tmp; pthread_attr_t attr;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
             if (int err = pthread_create(&tmp, &attr, go_sp, (void*)(port_name))) {
 				printf ("Failed to create go_sp thread! Error: %d\n", err);
+				exit(1);
 			}
             sps.insert(pair<const char*, pthread_t>(port_name, tmp));
 
@@ -91,8 +92,8 @@ void fatal(void * r) {
     pthread_exit (NULL);
 };
 
-
-void fatal(char * msg) {
+void fatal(const char * r) {
+    char * msg = (char*) r;
     printf (msg);
     pthread_exit (NULL);
 };
