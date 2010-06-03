@@ -20,7 +20,7 @@
 #ifndef __INPUT_H_INCLUDED__
 #define __INPUT_H_INCLUDED__
 
-#include <pthread.h>
+#include "main.h"
 #include "soundpatty.h"
 
 class Input {
@@ -61,9 +61,10 @@ class JackInput : public Input {
         jack_port_t * dst_port, * src_port;
         list<buffer_t> data_in;
 };
-jack_client_t *JackInput::_client = NULL;
 
-pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
+jack_client_t *JackInput::_client;
+
+pthread_mutex_t jackInputsMutex;
 list<JackInput*> jackInputs;
 
 #endif //__INPUT_H_INCLUDED__

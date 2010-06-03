@@ -16,10 +16,7 @@
  *
  */
 
-
-#include "main.h"
 #include "input.h"
-#include "soundpatty.h"
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
 
@@ -54,6 +51,9 @@ jack_client_t *JackInput::get_client() {
 };
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
+
+    pthread_mutex_init(&jackInputsMutex, NULL);
+
     data_in;
     pthread_mutex_init(&data_mutex, NULL);
 	pthread_cond_init(&condition_cond, NULL);

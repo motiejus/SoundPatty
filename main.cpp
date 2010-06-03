@@ -19,6 +19,7 @@
 #include "main.h"
 #include "input.h"
 #include "soundpatty.h"
+#include "getopt.h"
 
 void its_over(double place) {
     printf("FOUND, processed %.6f sec\n", place);
@@ -33,9 +34,63 @@ int main (int argc, char *argv[]) {
                 "./readit config.cfg samplefile.txt jack jack\n");
     }
 
-	all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
+    all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
     Input *input;
     SoundPatty *pat;
+
+
+    int c;
+    while (1) {
+        static struct option long_options[] =
+        {
+            /* These options don't set a flag.
+               We distinguish them by their indices. */
+            {"action",     required_argument,       0, 'a'},
+            // Dump or catch
+
+            {"config-file",  required_argument,       0, 'c'},
+            // Config file
+
+            {"input-driver",  required_argument, 0, 'd'},
+            // Jack or WAV
+
+            {"input-name",  required_argument, 0, 'n'},
+            // For jack: input port name, for WAV: filename.wav
+
+
+            {"dump-file",  optional_argument, 0, 'd'},
+            // Usually samplefile.txt (file with treshold values)
+
+            {0, 0, 0, 0}
+        };
+        int option_index = 0;
+        c = getopt_long (argc, argv, "abc:d:f:", long_options, &option_index);
+        /* Detect the end of the options. */
+        if (c == -1)
+            break;
+
+        char *input_driver; // Allowed: jack or wav
+        switch (c)
+        {
+            case 'd':
+                if (strcmp(optarg, "jack") & strcmp(optarg, "wav") != 0) {
+                    // Neither jack nor wav
+                    printf ("Input driver must be either jack or wav!");
+                    strcpy(input_driver, optarg);
+                }
+                break;
+
+            case '?':
+                /* getopt_long already printed an error message. */
+                break;
+
+            default:
+                abort ();
+        }
+
+
+    }
+
 
     if (argc == 3 || argc == 4) { // WAV
         input = new WavInput(argv[argc - 1], &this_cfg);
@@ -51,7 +106,7 @@ int main (int argc, char *argv[]) {
     if (argc == 4 || argc == 5) { // Catch WAV or Jack
         pat->setAction(ACTION_CATCH, argv[2], its_over);
     }
-	// Hmm if more - we can create new SoundPatty instances right here! :-)
+    // Hmm if more - we can create new SoundPatty instances right here! :-)
     pat->go();
 
     exit(0);

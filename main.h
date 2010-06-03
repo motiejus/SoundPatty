@@ -17,10 +17,17 @@ using namespace std;
 #include <sstream>
 #include <fstream>
 
+#include <pthread.h>
 #include <jack/jack.h>
 
 #include <sys/types.h>
 #include <unistd.h>
+
+/*
+#include "log4cxx/logger.h"
+#include "log4cxx/basicconfiguration.h"
+#include "log4cxx/basicconfiguration.h"
+*/
 
 #define SRC_WAV 0
 #define SRC_JACK_ONE 1
