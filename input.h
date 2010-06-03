@@ -36,10 +36,10 @@ class Input {
 
 class WavInput : public Input {
     public:
-        int giveInput(buffer_t *buf_prop);
-        WavInput(SoundPatty * inst, const void * args);
+        int giveInput(buffer_t *);
+        WavInput(const void *, all_cfg_t *);
     protected:
-        int process_headers(const char * infile);
+        int process_headers(const char * infile, all_cfg_t *);
         bool check_sample (const char * sample, const char * b);
     private:
         FILE *_fh;
@@ -48,18 +48,22 @@ class WavInput : public Input {
 class JackInput : public Input {
     public:
         static int jack_proc(jack_nframes_t nframes, void *arg);
+        static jack_client_t *get_client();
         int giveInput(buffer_t *buf_prop);
-        jack_client_t * client;
         char *src_port_name;
         string dst_port_name;
 
-        JackInput(SoundPatty * inst, const void * args);
+        JackInput(const void * args, all_cfg_t *cfg);
         pthread_mutex_t data_mutex;
         pthread_cond_t  condition_cond;
+        static jack_client_t *_client;
     private:
         jack_port_t * dst_port, * src_port;
-
         list<buffer_t> data_in;
 };
+jack_client_t *JackInput::_client = NULL;
+
+pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
+list<JackInput*> jackInputs;
 
 #endif //__INPUT_H_INCLUDED__

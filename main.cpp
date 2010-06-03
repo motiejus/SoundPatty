@@ -17,6 +17,7 @@
  */
 
 #include "main.h"
+#include "input.h"
 #include "soundpatty.h"
 
 void its_over(double place) {
@@ -33,19 +34,22 @@ int main (int argc, char *argv[]) {
     }
 
 	all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
-    SoundPatty * pat = new SoundPatty(this_cfg);
+    Input *input;
+    SoundPatty *pat;
 
     if (argc == 3 || argc == 4) { // WAV
-        pat->setInput(SRC_WAV, argv[argc - 1]);
+        input = new WavInput(argv[argc - 1], &this_cfg);
     }
+    if (argc == 5) { // Catch Jack
+        input = new JackInput(argv[4], &this_cfg);
+    }
+    pat = new SoundPatty(input, &this_cfg);
+
     if (argc == 3) { // Dump out via WAV
         pat->setAction(ACTION_DUMP);
     }
     if (argc == 4 || argc == 5) { // Catch WAV or Jack
         pat->setAction(ACTION_CATCH, argv[2], its_over);
-    }
-    if (argc == 5) { // Catch Jack
-        pat->setInput(SRC_JACK_ONE, argv[4]);
     }
 	// Hmm if more - we can create new SoundPatty instances right here! :-)
     pat->go();

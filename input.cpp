@@ -23,45 +23,53 @@
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
 
-    JackInput * in_inst = (JackInput*) arg;
-    pthread_mutex_lock(&in_inst->data_mutex);
+    pthread_mutex_lock(&jackInputsMutex);
+    for(list<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
+        JackInput *in_inst = *inp;
+        pthread_mutex_lock(&in_inst->data_mutex);
 
-    buffer_t buffer;
-    buffer.buf = (jack_default_audio_sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
-    buffer.nframes = nframes;
-    in_inst->data_in.push_back(buffer);
-    pthread_cond_signal(&in_inst->condition_cond);
-    pthread_mutex_unlock(&in_inst->data_mutex);
+        buffer_t buffer;
+        buffer.buf = (jack_default_audio_sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
+        buffer.nframes = nframes;
+        in_inst->data_in.push_back(buffer);
+        pthread_cond_signal(&in_inst->condition_cond);
+        pthread_mutex_unlock(&in_inst->data_mutex);
+    }
+    pthread_mutex_unlock(&jackInputsMutex);
 
     return 0;
 };
 
-JackInput::JackInput(SoundPatty * inst, const void * args) {
+jack_client_t *JackInput::get_client() {
+    if (_client == NULL) { // Jack client initialization (SINGLETON)
+        ostringstream dst_port_str, dst_client_str;
+        dst_client_str << "sp_client_" << getpid();
+        if ((JackInput::_client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
+            fatal ((void*)"jack server not running?\n");
+        }
+        jack_set_process_callback(_client, JackInput::jack_proc, NULL);
+        if (jack_activate (_client)) { fatal ((void*)"cannot activate client"); }
+    }
+    return JackInput::_client;
+};
+
+JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     data_in;
     pthread_mutex_init(&data_mutex, NULL);
 	pthread_cond_init(&condition_cond, NULL);
 
-    _sp_inst = inst;
-    char * src_port_name = (char*) args;
+    char *src_port_name = (char*) args;
 
-    ostringstream dst_port_str, dst_client_str;
-
-    dst_client_str << "sp_client_" << getpid();
-
-    if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
-        fatal ((void*)"jack server not running?\n");
-    }
-
-    jack_set_process_callback(client, JackInput::jack_proc, (void*)this);
-
+    jack_client_t *client = JackInput::get_client();
     SAMPLE_RATE = jack_get_sample_rate (client);
+    cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
+    cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
 
-    _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
+    pthread_mutex_lock(&jackInputsMutex);
+    jackInputs.push_back(this);
+    pthread_mutex_unlock(&jackInputsMutex);
 
-    _sp_inst->CHUNKSIZE = _sp_inst->cfg["chunklen"] * (int)SAMPLE_RATE;
     dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
-
-    if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
         char errmsg[200];
@@ -103,7 +111,7 @@ int WavInput::giveInput(buffer_t *buf_prop) {
 
 
 /// WavInput here ///
-int WavInput::process_headers(const char * infile) {
+int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
     char errmsg[200];
 
     _fh = fopen(infile, "rb");
@@ -135,8 +143,8 @@ int WavInput::process_headers(const char * infile) {
         fatal (errmsg);
     }
     fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
-    _sp_inst->WAVE = (int)SAMPLE_RATE * _sp_inst->cfg["minwavelen"];
-    _sp_inst->CHUNKSIZE = _sp_inst->cfg["chunklen"] * (int)SAMPLE_RATE;
+    cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
+    cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
     fseek(_fh, 0x22, 0);
     uint16_t BitsPerSample;
     fread(&BitsPerSample, 1, 2, _fh);
@@ -167,15 +175,13 @@ bool WavInput::check_sample (const char * sample, const char * b) { // My STRCPY
 };
 
 
-WavInput::WavInput(SoundPatty * inst, const void * args) {
-    _sp_inst = inst;
-    char * filename = (char*) args;
-    process_headers(filename);
+WavInput::WavInput(const void * args, all_cfg_t *cfg) {
+    process_headers((char*)args, cfg);
     // ------------------------------------------------------------
     // Adjust _sp_ volume 
     // Jack has float (-1..1) while M$ WAV has (-2^15..2^15)
     //
-    for (vector<sVolumes>::iterator vol = _sp_inst->volume.begin(); vol != _sp_inst->volume.end(); vol++) {
+    for (vector<sVolumes>::iterator vol = cfg->second.begin(); vol != cfg->second.end(); vol++) {
         vol->min *= (1<<15);
         vol->max *= (1<<15);
     }

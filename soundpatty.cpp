@@ -37,9 +37,10 @@ void SoundPatty::setAction(int action) {
 };
 
 
-SoundPatty::SoundPatty(all_cfg_t all_cfg) { 
-	cfg = all_cfg.first;
-	volume = all_cfg.second;
+SoundPatty::SoundPatty(Input *input, all_cfg_t *all_cfg) { 
+    _input = input;
+	cfg = all_cfg->first;
+	volume = all_cfg->second;
     gSCounter = gMCounter = 0;
 };
 
@@ -82,21 +83,8 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
 };
 
 
-int SoundPatty::setInput(const int source_app, void * input_params) {
-    if (0 <= source_app && source_app <= 2) {
-        this->source_app = source_app;
-    }
-    switch(this->source_app) {
-        case SRC_WAV:
-            _input = new WavInput(this, input_params);
-            break;
-        case SRC_JACK_ONE:
-            _input = new JackInput(this, input_params);
-            break;
-		case SRC_JACK_AUTO:
-			_input = new JackInput(this, input_params);
-			break;
-    }
+int SoundPatty::setInput(Input * input) {
+    _input = input;
     return 0;
 };
 
@@ -167,14 +155,14 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
             //
             V->head = gSCounter;
         } else { // We are not in the wave
-            if (V->proc && (V->min < 0.001 || gSCounter - V->head > WAVE)) {
+            if (V->proc && (V->min < 0.001 || gSCounter - V->head > cfg["WAVE"])) {
 
                 //------------------------------------------------------------
                 // This wave is over
                 //
                 V->proc = false; // Stop processing for both cases: found and not
 
-                if (gSCounter - V->tail >= CHUNKSIZE) {
+                if (gSCounter - V->tail >= cfg["CHUNKSIZE"]) {
                     // ------------------------------------------------------------
                     // The previous chunk is big enough to be noticed
                     //

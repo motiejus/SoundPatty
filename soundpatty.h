@@ -73,15 +73,14 @@ class SoundPatty {
     public:
         static all_cfg_t read_cfg(const char*);
         void read_captured_values(const char *);
-        SoundPatty(all_cfg_t);
+        SoundPatty(Input *, all_cfg_t *);
         void setAction(int action);
         void setAction(int action, char * cfg, void (*fn)(double));
         static void dump_out(const treshold_t args);
         void do_checking(const treshold_t args);
         map<string, double> cfg;
-        int setInput(int, void*);
+        int setInput(Input*);
         void go();
-        unsigned int WAVE, CHUNKSIZE;
         unsigned long gMCounter, // How many matches we found
                       gSCounter; // How many samples we skipped
         int search_patterns (jack_default_audio_sample_t cur, treshold_t *);
