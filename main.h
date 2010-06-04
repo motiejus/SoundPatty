@@ -19,8 +19,6 @@
 #ifndef __SP_MAIN_H_INCLUDED__
 #define __SP_MAIN_H_INCLUDED__
 
-using namespace std;
-
 #include <math.h>
 #include <algorithm>
 #include <stdlib.h>
@@ -32,6 +30,7 @@ using namespace std;
 #include <string>
 #include <string.h>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <fstream>
 
@@ -42,8 +41,14 @@ using namespace std;
 #include <unistd.h>
 
 #include "log4cxx/logger.h"
-#include "log4cxx/basicconfiguration.h"
-#include "log4cxx/basicconfiguration.h"
+#include "log4cxx/logmanager.h"
+#include "log4cxx/basicconfigurator.h"
+#include "log4cxx/patternlayout.h"
+#include "log4cxx/consoleappender.h"
+
+using namespace std;
+//using namespace log4cxx;
+
 
 #define SRC_WAV 0
 #define SRC_JACK_ONE 1

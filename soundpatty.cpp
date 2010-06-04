@@ -46,10 +46,20 @@ SoundPatty::SoundPatty(Input *input, all_cfg_t *all_cfg) {
 
 
 all_cfg_t SoundPatty::read_cfg (const char * filename) {
+
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
+
 	map<string,double> cfg;
 	vector<sVolumes> volume;
     ifstream file;
-    file.open(filename);
+    file.exceptions(ifstream::failbit | ifstream::badbit);
+    try {
+        file.open(filename);
+    } catch (ifstream::failure e) {
+        LOG4CXX_FATAL(l,"Could not read config file " << filename);
+        pthread_exit(NULL);
+    }
+
     string line;
     int x;
     while (! file.eof() ) {
@@ -60,6 +70,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
         double tmp; i >> tmp;
         cfg[line.substr(0,x)] = tmp;
     }
+    LOG4CXX_DEBUG(l,"Read " << cfg.size() << " config values from " << filename);
 
     sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
@@ -78,6 +89,9 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
             }
         }
     }
+    if (max_index == 0) {
+        fatal((void*)"ERROR. Length of vol array: 0\n");
+    }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
 	return all_cfg_t(cfg, volume);
 };
@@ -88,17 +102,25 @@ int SoundPatty::setInput(Input * input) {
     return 0;
 };
 
+
 void SoundPatty::go() {
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
+
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
+        LOG4CXX_TRACE(l,"Got buffer, length: " << buf.nframes);
         treshold_t ret;
+
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
             jack_default_audio_sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
             if (search_patterns(cur, &ret))
             {
+                LOG4CXX_TRACE(l,"Found pattern ("<<setw(3)<<ret.b<<") "
+                        "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<< setw(8) << ret.sec<<")");
+
                 if (_action == ACTION_DUMP) {
                     SoundPatty::dump_out(ret);
                 }
@@ -194,6 +216,7 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
 //
 void SoundPatty::do_checking(const treshold_t tr) {
 
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp.check"));
     //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Iterate through pa
@@ -218,13 +241,19 @@ void SoundPatty::do_checking(const treshold_t tr) {
     //
     for (vals_t::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
     {
-        //printf("%d %.6f matches %.6f (%d)\n", in_a->first.first, sec, in_a->first.second.tm, in_a->second.c);
+        /*
+        char msg[200];
+        sprintf(msg, "%d %.6f matches %.6f (%d)",in_a->first.first,tr.sec,in_a->first.second.tm,in_a->second.c);
+        LOG4CXX_TRACE(l,msg);
+        */
         int a = in_a->second.c;
         //------------------------------------------------------------
         // Check if it exists in our work array
         //
-        for (list<workitm>::iterator w = work.begin(); w != work.end();) {
+        int i = 0; // Work list counter
+        for (list<workitm>::iterator w = work.begin(); w != work.end(); i++) {
             if (b - w->b > round(cfg["maxsteps"])) {
+                LOG4CXX_TRACE(l,"Work item " << i << " removed, no match for a long time");
                 work.erase(w); w = work.begin(); continue;
             }
             if (b == w->b || a - w->a > round(cfg["maxsteps"]) || w->a >= a) { w++; continue; }
@@ -235,10 +264,9 @@ void SoundPatty::do_checking(const treshold_t tr) {
             w->a = a; w->b = b;
             w->trace.push_back(pair<int,unsigned long>(a,b));
             if (++(w->len) < round(cfg["matchme"])) { // Proceeding with the "thread"
+                LOG4CXX_TRACE(l,"Work item " << i << " expanded to " << w->len << " items")
                 used_a.insert(a);
-                //printf ("Thread expanded to %d\n", w->len);
             } else { // This means the treshold is reached
-
                 // This kind of function is called when the pattern is recognized
                 //void(*end_fn)(workitm *, double) = (void*)(workitm *, double) _callback;
                 _callback (tr.place + tr.sec);

@@ -1,5 +1,5 @@
 # vim: set noet:
-DEPS=`pkg-config --libs jack` -lpthread -std=gnu++0x -g
+DEPS=`pkg-config --libs jack` -llog4cxx -std=gnu++0x -g
 
 all: main controller
 

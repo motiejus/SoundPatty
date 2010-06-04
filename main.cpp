@@ -19,13 +19,12 @@
 #include "main.h"
 #include "input.h"
 #include "soundpatty.h"
-#include "getopt.h"
+// TODO: #include <getopt.h>
 
 void its_over(double place) {
     printf("FOUND, processed %.6f sec\n", place);
     exit(0);
 };
-
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
@@ -34,80 +33,44 @@ int main (int argc, char *argv[]) {
                 "./readit config.cfg samplefile.txt jack jack\n");
     }
 
+    log4cxx::LogManager::resetConfiguration();
+    log4cxx::LayoutPtr layoutPtr(new log4cxx::PatternLayout("%d{yyyy-MM-dd HH:mm:ss,SSS} [%t] %-19l %-5p - %m%n"));
+    log4cxx::AppenderPtr appenderPtr(new log4cxx::ConsoleAppender(layoutPtr, "System.err"));
+    log4cxx::BasicConfigurator::configure(appenderPtr);
+
+    log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
+    l->setLevel(log4cxx::Level::getTrace());
+
+
+    LOG4CXX_DEBUG(l,"Starting to read configs from " << argv[1]);
     all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
     Input *input;
     SoundPatty *pat;
 
-
-    int c;
-    while (1) {
-        static struct option long_options[] =
-        {
-            /* These options don't set a flag.
-               We distinguish them by their indices. */
-            {"action",     required_argument,       0, 'a'},
-            // Dump or catch
-
-            {"config-file",  required_argument,       0, 'c'},
-            // Config file
-
-            {"input-driver",  required_argument, 0, 'd'},
-            // Jack or WAV
-
-            {"input-name",  required_argument, 0, 'n'},
-            // For jack: input port name, for WAV: filename.wav
-
-
-            {"dump-file",  optional_argument, 0, 'd'},
-            // Usually samplefile.txt (file with treshold values)
-
-            {0, 0, 0, 0}
-        };
-        int option_index = 0;
-        c = getopt_long (argc, argv, "abc:d:f:", long_options, &option_index);
-        /* Detect the end of the options. */
-        if (c == -1)
-            break;
-
-        char *input_driver; // Allowed: jack or wav
-        switch (c)
-        {
-            case 'd':
-                if (strcmp(optarg, "jack") & strcmp(optarg, "wav") != 0) {
-                    // Neither jack nor wav
-                    printf ("Input driver must be either jack or wav!");
-                    strcpy(input_driver, optarg);
-                }
-                break;
-
-            case '?':
-                /* getopt_long already printed an error message. */
-                break;
-
-            default:
-                abort ();
-        }
-
-
-    }
-
-
     if (argc == 3 || argc == 4) { // WAV
-        input = new WavInput(argv[argc - 1], &this_cfg);
+        LOG4CXX_DEBUG(l,"Wav input, input file: " << argv[argc - 1]);
+        input = new WavInput(argv[argc-1], &this_cfg);
     }
     if (argc == 5) { // Catch Jack
+        LOG4CXX_DEBUG(l,"Jack input instance, file: " << argv[4]);
         input = new JackInput(argv[4], &this_cfg);
     }
+    sleep(0.5);
     pat = new SoundPatty(input, &this_cfg);
+    LOG4CXX_DEBUG(l,"Created first SoundPatty instance");
 
     if (argc == 3) { // Dump out via WAV
         pat->setAction(ACTION_DUMP);
+        LOG4CXX_DEBUG(l,"Action is DUMP");
     }
     if (argc == 4 || argc == 5) { // Catch WAV or Jack
         pat->setAction(ACTION_CATCH, argv[2], its_over);
+        LOG4CXX_DEBUG(l,"Action is CATCH, filename: " << argv[2]);
     }
     // Hmm if more - we can create new SoundPatty instances right here! :-)
+    LOG4CXX_INFO(l,"Starting main SoundPatty loop");
     pat->go();
+    LOG4CXX_INFO(l,"SoundPatty main loop completed");
 
     exit(0);
 }

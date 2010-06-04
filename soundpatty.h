@@ -23,9 +23,10 @@
 #include "main.h"
 
 struct treshold_t {
-    int r;
-    double place, sec;
-    unsigned long b;
+    int r; // Volume index (from configs)
+    double place, // Absolute place in file
+           sec; // Length of treshold
+    unsigned long b; // Number of found treshold
 };
 
 class Range {
