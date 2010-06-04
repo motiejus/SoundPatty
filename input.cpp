@@ -18,10 +18,10 @@
 
 #include "input.h"
 
-jack_client_t *JackInput::_client;
-JackInput *JackInput::jack_inst;
+jack_client_t *JackInput::_client = NULL;
+JackInput *JackInput::jack_inst = NULL;
 
-pthread_mutex_t jackInputsMutex;
+pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
 list<JackInput*> jackInputs;
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
