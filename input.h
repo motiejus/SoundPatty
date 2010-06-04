@@ -48,7 +48,7 @@ class WavInput : public Input {
 class JackInput : public Input {
     public:
         static int jack_proc(jack_nframes_t nframes, void *arg);
-        static jack_client_t *get_client();
+        static jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);
         char *src_port_name;
         string dst_port_name;
@@ -56,15 +56,15 @@ class JackInput : public Input {
         JackInput(const void * args, all_cfg_t *cfg);
         pthread_mutex_t data_mutex;
         pthread_cond_t  condition_cond;
+        static JackInput *jack_inst;
         static jack_client_t *_client;
+
     private:
-        jack_port_t * dst_port, * src_port;
+        jack_port_t *dst_port, *src_port;
         list<buffer_t> data_in;
 };
 
-jack_client_t *JackInput::_client;
-
-pthread_mutex_t jackInputsMutex;
-list<JackInput*> jackInputs;
+//pthread_mutex_t jackInputsMutex;
+//list<JackInput*> jackInputs;
 
 #endif //__INPUT_H_INCLUDED__

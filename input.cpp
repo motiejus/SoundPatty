@@ -18,11 +18,16 @@
 
 #include "input.h"
 
+jack_client_t *JackInput::_client;
+JackInput *JackInput::jack_inst;
+
+
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
 
-    pthread_mutex_lock(&jackInputsMutex);
-    for(list<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
-        JackInput *in_inst = *inp;
+    //pthread_mutex_lock(&jackInputsMutex);
+    //for(list<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
+        JackInput *in_inst = JackInput::jack_inst;
+        //JackInput *in_inst = *inp;
         pthread_mutex_lock(&in_inst->data_mutex);
 
         buffer_t buffer;
@@ -31,8 +36,8 @@ int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
         in_inst->data_in.push_back(buffer);
         pthread_cond_signal(&in_inst->condition_cond);
         pthread_mutex_unlock(&in_inst->data_mutex);
-    }
-    pthread_mutex_unlock(&jackInputsMutex);
+    //}
+    //pthread_mutex_unlock(&jackInputsMutex);
 
     return 0;
 };
@@ -52,7 +57,7 @@ jack_client_t *JackInput::get_client() {
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
 
-    pthread_mutex_init(&jackInputsMutex, NULL);
+    //pthread_mutex_init(&jackInputsMutex, NULL);
 
     data_in;
     pthread_mutex_init(&data_mutex, NULL);
@@ -65,9 +70,9 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
     cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
 
-    pthread_mutex_lock(&jackInputsMutex);
-    jackInputs.push_back(this);
-    pthread_mutex_unlock(&jackInputsMutex);
+    //pthread_mutex_lock(&jackInputsMutex);
+    //jackInputs.push_back(this);
+    //pthread_mutex_unlock(&jackInputsMutex);
 
     dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
 
