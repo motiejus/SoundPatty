@@ -15,5 +15,7 @@ input.o: main.h input.cpp input.h soundpatty.h
 clean:
 	rm -f main soundpatty.o input.o main.o controller controller.o
 
-controller: controller.cpp controller.h
-	g++ ${DEPS} controller.cpp -o controller
+controller: controller.o soundpatty.o input.o
+	g++ ${DEPS} controller.o soundpatty.o input.o -o controller
+controller.o: controller.cpp controller.h
+	g++ ${DEPS} -c controller.cpp

@@ -1,5 +1,7 @@
+
 #include "controller.h"
 
+/*
 void *go_sp(void *port_name_a) {
     // Call SoundPatty on this port
     char *port_name = (char*)port_name_a;
@@ -29,6 +31,7 @@ void *go_sp(void *port_name_a) {
     printf("%s *** %s *** ::: %s", output, port_name, line);
 };
 
+*/
 void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
     if (!connect) return;
     // See if "dst" port does not begin with sp_client_
@@ -45,10 +48,30 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
     pthread_cond_signal(&p_queue_cond);
 };
 
+void its_over(double place) {
+    printf("FOUND, processed %.6f sec\n", place);
+    exit(0);
+};
+
 int main () {
+
+    log4cxx::LogManager::resetConfiguration();
+    log4cxx::LayoutPtr layoutPtr(new log4cxx::PatternLayout("%d{yyyy-MM-dd HH:mm:ss,SSS} [%t] %-19l %-5p - %m%n"));
+    log4cxx::AppenderPtr appenderPtr(new log4cxx::ConsoleAppender(layoutPtr, "System.err"));
+    log4cxx::BasicConfigurator::configure(appenderPtr);
+
+    log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
+    l->setLevel(log4cxx::Level::getDebug());
+
+
+    LOG4CXX_INFO(l,"Starting to read configs from " << SP_CONF);
+    all_cfg_t this_cfg = SoundPatty::read_cfg(SP_CONF); //usually config.cfg
+    Input *input;
+    SoundPatty *pat;
 
     pthread_mutex_init(&p_queue_mutex, NULL);
     pthread_cond_init(&p_queue_cond, NULL);
+
     ostringstream dst_client_str;
     dst_client_str << "sp_manager_" << getpid();
     if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
@@ -56,44 +79,32 @@ int main () {
     }
     dst_client_str.~ostringstream();
 
+    LOG4CXX_INFO(l,"Created jack_client: " << jack_get_client_name(client));
+
     jack_set_port_connect_callback(client, port_connect, NULL);
     if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
+    LOG4CXX_INFO(l,"Activated jack manager client");
 
 	// Waiting for new client to come up. port_connect fills p_queue
     pthread_mutex_lock(&p_queue_mutex);
     while (1) {
         pthread_cond_wait(&p_queue_cond, &p_queue_mutex);
         while (!p_queue.empty()) {
+
             jack_port_t *port = p_queue.front();
             p_queue.pop_front();
             pthread_mutex_unlock(&p_queue_mutex);
 
             const char *port_name = jack_port_name(port);
-            //printf("Got a port to connect to: %s\n", port_name);
-            pthread_t tmp; pthread_attr_t attr;
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+            LOG4CXX_DEBUG(l,"Got new jack port, name: " << port_name);
 
-            if (int err = pthread_create(&tmp, &attr, go_sp, (void*)(port_name))) {
-				printf ("Failed to create go_sp thread! Error: %d\n", err);
-				exit(1);
-			}
-            sps.insert(pair<const char*, pthread_t>(port_name, tmp));
-
+            // Create new SoundPatty instance here
+            input = new JackInput(port_name, &this_cfg);
+            LOG4CXX_DEBUG(l,"Created new JackInput instance");
+            pat = new SoundPatty(input, &this_cfg);
+            pat->setAction(ACTION_CATCH, (char*)SP_TRES, its_over);
             pthread_mutex_lock(&p_queue_mutex);
         }
 	}
 	return 0;
 }
-
-void fatal(void * r) {
-    char * msg = (char*) r;
-    printf (msg);
-    pthread_exit (NULL);
-};
-
-void fatal(const char * r) {
-    char * msg = (char*) r;
-    printf (msg);
-    pthread_exit (NULL);
-};
