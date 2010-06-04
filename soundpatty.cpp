@@ -263,8 +263,8 @@ void SoundPatty::do_checking(const treshold_t tr) {
             //
             w->a = a; w->b = b;
             w->trace.push_back(pair<int,unsigned long>(a,b));
+            LOG4CXX_TRACE(l,"Work item " << i << " expanded to " << w->len+1 << " items")
             if (++(w->len) < round(cfg["matchme"])) { // Proceeding with the "thread"
-                LOG4CXX_TRACE(l,"Work item " << i << " expanded to " << w->len << " items")
                 used_a.insert(a);
             } else { // This means the treshold is reached
                 // This kind of function is called when the pattern is recognized
