@@ -64,7 +64,7 @@ class JackInput : public Input {
         list<buffer_t> data_in;
 };
 
-//pthread_mutex_t jackInputsMutex;
-//list<JackInput*> jackInputs;
+extern pthread_mutex_t jackInputsMutex;
+extern list<JackInput*> jackInputs;
 
 #endif //__INPUT_H_INCLUDED__
