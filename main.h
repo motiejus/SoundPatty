@@ -41,11 +41,9 @@ using namespace std;
 #include <sys/types.h>
 #include <unistd.h>
 
-/*
 #include "log4cxx/logger.h"
 #include "log4cxx/basicconfiguration.h"
 #include "log4cxx/basicconfiguration.h"
-*/
 
 #define SRC_WAV 0
 #define SRC_JACK_ONE 1

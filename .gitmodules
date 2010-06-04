@@ -1,3 +1,0 @@
-[submodule "log4cxx"]
-	path = log4cxx
-	url = git://github.com/apache/log4cxx.git
