@@ -37,6 +37,7 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
     if (!connect) {
 		LOG4CXX_DEBUG(l,"Ports "<<jack_port_name(jack_port_by_id(client,a))<<" and "
 				<< jack_port_name(jack_port_by_id(client,b))<<" disconnect, ignoring");
+		return;
 	}
 
     // See if "dst" port does not begin with sp_client_
@@ -104,7 +105,7 @@ int main () {
             pthread_mutex_unlock(&p_queue_mutex);
 
             const char *port_name = jack_port_name(port);
-            LOG4CXX_DEBUG(l,"Got new jack port, name: " << port_name);
+            LOG4CXX_DEBUG(l,"Got new jack port, name: "<<port_name);
 
             // Create new SoundPatty instance here
             input = new JackInput(port_name, &this_cfg);
