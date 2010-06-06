@@ -25,7 +25,6 @@ pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
 list<JackInput*> jackInputs;
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
-
     pthread_mutex_lock(&jackInputsMutex);
     for(list<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
         JackInput *in_inst = *inp;
@@ -44,20 +43,22 @@ int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
 };
 
 jack_client_t *JackInput::get_client() {
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
     if (_client == NULL) { // Jack client initialization (SINGLETON)
         ostringstream dst_port_str, dst_client_str;
         dst_client_str << "sp_client_" << getpid();
         if ((JackInput::_client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
-            fatal ((void*)"jack server not running?\n");
+			LOG4CXX_FATAL(l,"jack server not running?\n");
+			exit(1);
         }
         jack_set_process_callback(_client, JackInput::jack_proc, NULL);
-        if (jack_activate (_client)) { fatal ((void*)"cannot activate client"); }
+        if (jack_activate (_client)) { LOG4CXX_FATAL(l,"cannot activate client"); }
     }
     return JackInput::_client;
 };
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
-
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
     pthread_mutex_init(&jackInputsMutex, NULL);
 
     data_in;
@@ -78,9 +79,8 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
-        char errmsg[200];
-        sprintf(errmsg, "Failed to connect %s to %s, exiting.\n", src_port_name, jack_port_name(dst_port));
-        fatal((void*)errmsg);
+        LOG4CXX_FATAL(l,"Failed to connect "<<src_port_name<<" to "<<jack_port_name(dst_port)<<", exiting.\n");
+		exit(1);
     }
 };
 
@@ -118,12 +118,12 @@ int WavInput::giveInput(buffer_t *buf_prop) {
 
 /// WavInput here ///
 int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
-    char errmsg[200];
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
 
     _fh = fopen(infile, "rb");
     if (_fh == NULL) {
-        sprintf(errmsg, "Failed to open file %s, exiting\n", infile);
-        fatal(errmsg);
+        LOG4CXX_FATAL(l,"Failed to open file "<<infile<<", exiting");
+		exit(1);
     }
 
     // Read bytes [0-3] and [8-11], they should be "RIFF" and "WAVE" in ASCII
@@ -132,21 +132,21 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
 
     char sample[] = "RIFF";
     if (! check_sample(sample, header) ) {
-        sprintf(errmsg, "RIFF header not found in %s, exiting\n", infile);
-        fatal(errmsg);
+        LOG4CXX_FATAL(l, "RIFF header not found in "<< infile <<", exiting");
+		exit(1);
     }
     // Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
     uint16_t tmp[2]; // two-byte integer
     fseek(_fh, 0x14, 0); // offset = 20 bytes
     fread(&tmp, 2, 2, _fh); // Reading two two-byte samples (comp. code and no. of channels)
     if ( tmp[0] != 1 ) {
-        sprintf(errmsg, "Only PCM(1) supported, compression code given: %d\n", tmp[0]);
-        fatal (errmsg);
+        LOG4CXX_FATAL(l, "Only PCM(1) supported, compression code given: " << tmp[0]);
+		exit(1);
     }
     // Number of channels must be "MONO"
     if ( tmp[1] != 1 ) {
-        sprintf(errmsg, "Only MONO supported, given number of channels: %d\n", tmp[1]);
-        fatal (errmsg);
+        LOG4CXX_FATAL(l, "Only MONO supported, given number of channels: " << tmp[1]);
+		exit(1);
     }
     fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
     cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
@@ -155,15 +155,16 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
     uint16_t BitsPerSample;
     fread(&BitsPerSample, 1, 2, _fh);
     if (BitsPerSample != 16) {
-        sprintf(errmsg, "Only 16-bit WAVs supported, given: %d\n", BitsPerSample);
-        fatal(errmsg);
+        LOG4CXX_FATAL(l, "Only 16-bit WAVs supported, given: " << BitsPerSample);
+		exit(1);
     }
     // Get data chunk size here
     fread(header, 1, 4, _fh);
     strcpy(sample, "data");
 
     if (! check_sample(sample, header)) {
-        fatal ((void*)"data chunk not found in byte offset=36, file corrupted.");
+        LOG4CXX_FATAL (l,"data chunk not found in byte offset=36, file corrupted.");
+		exit(1);
     }
     int DATA_SIZE;
     fread(&DATA_SIZE, 4, 1, _fh); // Single two-byte sample

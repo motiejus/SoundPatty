@@ -27,8 +27,8 @@ class Input {
     public:
         int SAMPLE_RATE, DATA_SIZE;
         virtual int giveInput(buffer_t * buffer) {
-            fatal((void*)"giveInput not implemented, exiting\n");
-            return 0;
+            perror("giveInput not implemented, exiting\n");
+			exit(1);
         };
     protected:
         SoundPatty * _sp_inst;

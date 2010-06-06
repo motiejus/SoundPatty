@@ -46,7 +46,6 @@ SoundPatty::SoundPatty(Input *input, all_cfg_t *all_cfg) {
 
 
 all_cfg_t SoundPatty::read_cfg (const char * filename) {
-
     log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
 
 	map<string,double> cfg;
@@ -90,7 +89,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
         }
     }
     if (max_index == 0) {
-        fatal((void*)"ERROR. Length of vol array: 0\n");
+        LOG4CXX_FATAL(l,"ERROR. Length of vol array: 0\n");
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
 	return all_cfg_t(cfg, volume);
@@ -110,7 +109,7 @@ void SoundPatty::go() {
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
-        LOG4CXX_TRACE(l,"Got buffer, length: " << buf.nframes);
+        LOG4CXX_DEBUG(l,"Got buffer, length: " << buf.nframes);
         treshold_t ret;
 
 
@@ -306,18 +305,6 @@ vector<string> explode(const string &delimiter, const string &str) { // Found so
     return arr;
 };
 
-
-void fatal(void * r) {
-    char * msg = (char*) r;
-    printf (msg);
-    exit (1);
-};
-
-
-void fatal(char * msg) {
-    printf (msg);
-    exit (1);
-};
 
 
 workitm::workitm(const int a, const unsigned long b) {

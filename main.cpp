@@ -28,9 +28,11 @@ void its_over(double place) {
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
-        fatal ((void*)"Usage: ./readit config.cfg sample.wav\nor\n"
-                "./readit config.cfg samplefile.txt catchable.wav\n"
-                "./readit config.cfg samplefile.txt jack jack\n");
+        perror ("Usage: ./main config.cfg sample.wav\nor\n"
+                "./main config.cfg samplefile.txt catchable.wav\n"
+                "./main config.cfg samplefile.txt jack jack\n"
+				"./main (jack input, self-capturing ports, most feature-rich args");
+		exit(1);
     }
 
     log4cxx::LogManager::resetConfiguration();

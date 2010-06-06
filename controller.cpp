@@ -33,7 +33,12 @@ void *go_sp(void *port_name_a) {
 
 */
 void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
-    if (!connect) return;
+    log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
+    if (!connect) {
+		LOG4CXX_DEBUG(l,"Ports "<<jack_port_name(jack_port_by_id(client,a))<<" and "
+				<< jack_port_name(jack_port_by_id(client,b))<<" disconnect, ignoring");
+	}
+
     // See if "dst" port does not begin with sp_client_
     jack_port_t *port_a = jack_port_by_id(client, a);
     jack_port_t *port_b = jack_port_by_id(client, b);
@@ -41,7 +46,7 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
         return;
     }
     if (!(JackPortIsOutput & jack_port_flags(port_a))) return;
-    //printf("Adding to stack a: %s (b: %s)\n", jack_port_name(port_a), jack_port_name(port_b));
+    LOG4CXX_INFO(l,"Adding to stack a: "<<jack_port_name(port_a)<<" (b: "<< jack_port_name(port_b)<<")");
     pthread_mutex_lock(&p_queue_mutex);
     p_queue.push_back(port_a);
     pthread_mutex_unlock(&p_queue_mutex);
@@ -49,8 +54,11 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
 };
 
 void its_over(double place) {
-    printf("FOUND, processed %.6f sec\n", place);
-    exit(0);
+    log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
+	char msg[50];
+	sprintf(msg,"FOUND, processed %.6f sec\n", place);
+    LOG4CXX_INFO(l,msg);
+	return;
 };
 
 int main () {
@@ -63,7 +71,6 @@ int main () {
     log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
     l->setLevel(log4cxx::Level::getDebug());
 
-
     LOG4CXX_INFO(l,"Starting to read configs from " << SP_CONF);
     all_cfg_t this_cfg = SoundPatty::read_cfg(SP_CONF); //usually config.cfg
     Input *input;
@@ -75,14 +82,15 @@ int main () {
     ostringstream dst_client_str;
     dst_client_str << "sp_manager_" << getpid();
     if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
-        fatal ((void*)"jack server not running?\n");
+         LOG4CXX_FATAL (l,"jack server not running?");
+		 exit(1);
     }
     dst_client_str.~ostringstream();
 
     LOG4CXX_INFO(l,"Created jack_client: " << jack_get_client_name(client));
 
     jack_set_port_connect_callback(client, port_connect, NULL);
-    if (jack_activate (client)) { fatal ((void*)"cannot activate client"); }
+    if (jack_activate (client)) { LOG4CXX_FATAL (l,"cannot activate client"); }
     LOG4CXX_INFO(l,"Activated jack manager client");
 
 	// Waiting for new client to come up. port_connect fills p_queue
