@@ -35,7 +35,7 @@ int main (int argc, char *argv[]) {
 		exit(1);
     }
 
-    log4cxx::PropertyConfigurator::configure("log4j.conf");
+    log4cxx::PropertyConfigurator::configure("log4j.cfg");
     log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
     l->setLevel(log4cxx::Level::getTrace());
 

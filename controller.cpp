@@ -60,7 +60,7 @@ void its_over(const char *port_name, double place) {
 
 int main () {
 
-    log4cxx::PropertyConfigurator::configure("log4j.conf");
+    log4cxx::PropertyConfigurator::configure("log4j.cfg");
     log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("controller"));
 
     LOG4CXX_INFO(l,"Starting to read configs from " << SP_CONF);
