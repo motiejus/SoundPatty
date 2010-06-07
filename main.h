@@ -41,10 +41,7 @@
 #include <unistd.h>
 
 #include "log4cxx/logger.h"
-#include "log4cxx/logmanager.h"
-#include "log4cxx/basicconfigurator.h"
-#include "log4cxx/patternlayout.h"
-#include "log4cxx/consoleappender.h"
+#include "log4cxx/propertyconfigurator.h"
 
 using namespace std;
 //using namespace log4cxx;

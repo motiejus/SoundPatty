@@ -72,11 +72,11 @@ typedef pair<map<string,double>, vector<sVolumes> > all_cfg_t;
 class Input;
 class SoundPatty {
     public:
+        SoundPatty(const char*, Input *, all_cfg_t *);
         static all_cfg_t read_cfg(const char*);
         void read_captured_values(const char *);
-        SoundPatty(Input *, all_cfg_t *);
         void setAction(int action);
-        void setAction(int action, char * cfg, void (*fn)(double));
+        void setAction(int action, char * cfg, void (*fn)(const char*, const double));
         static void dump_out(const treshold_t args);
         static void *go_thread(void *inst); // Same as SoundPatty::go(), but for pthreads
         int do_checking(const treshold_t args);
@@ -87,9 +87,10 @@ class SoundPatty {
                       gSCounter; // How many samples we skipped
         int search_patterns (jack_default_audio_sample_t cur, treshold_t *);
         vector<sVolumes> volume;
+        char *name; // Each instance has a name
     private:
         int _action;
-        void (*_callback)(double);
+        void (*_callback)(const char*, const double);
         list<workitm> work;
         vals_t vals;
         Input * _input;

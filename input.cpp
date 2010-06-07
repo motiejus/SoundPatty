@@ -19,15 +19,18 @@
 #include "input.h"
 
 JackInput *JackInput::jack_inst = NULL;
+long JackInput::number_of_clients = 0; // Counter of jack clients
+// Not protected by mutex, because accessed only in one thread
 
 jack_client_t *mainclient = NULL;
 pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
-set<JackInput*> jackInputs;
+map<string,JackInput*> jackInputs;
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
+
     pthread_mutex_lock(&jackInputsMutex);
-    for(set<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
-        JackInput *in_inst = *inp;
+    for(map<string,JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
+        JackInput *in_inst = inp->second;
         pthread_mutex_lock(&in_inst->data_mutex);
 
         buffer_t buffer;
@@ -38,12 +41,14 @@ int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
         pthread_mutex_unlock(&in_inst->data_mutex);
     }
     pthread_mutex_unlock(&jackInputsMutex);
-
     return 0;
 };
 
 jack_client_t *JackInput::get_client() {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
+    string logger_name ("input.jack."); 
+    logger_name += string(dst_port_name);
+
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(logger_name));
     bool new_client = false;
     if (mainclient == NULL) { // Jack client initialization (SINGLETON should be called)
         new_client = true;
@@ -75,7 +80,7 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     data_in;
     pthread_mutex_init(&data_mutex, NULL);
 	pthread_cond_init(&condition_cond, NULL);
-    jack_client_t *client = JackInput::get_client();
+    jack_client_t *client = get_client();
 
     char *src_port_name = (char*) args;
     src_port = jack_port_by_name(client, src_port_name);
@@ -84,42 +89,46 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
     cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
 
-    LOG4CXX_DEBUG(l,"Locking JackInput mutex to insert instance to jackInputs");
-    pthread_mutex_lock(&jackInputsMutex);
-    LOG4CXX_DEBUG(l,"Mutex locked, inserting");
-    jackInputs.insert(this);
-
     char shortname[15];
     if (jack_port_name_size() <= 15) {
         LOG4CXX_FATAL(l,"Too short jack port name supported");
         exit(1);
     }
-    sprintf(shortname, "input_%d", jackInputs.size());
+
+    sprintf(shortname, "input_%d", ++JackInput::number_of_clients);
     dst_port = jack_port_register (client, shortname, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+    dst_port_name = string(jack_port_name(dst_port));
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
         LOG4CXX_FATAL(l,"Failed to connect "<<src_port_name<<" to "<<jack_port_name(dst_port)<<", exiting.\n");
 		exit(1);
     }
+
+    LOG4CXX_DEBUG(l,"Locking JackInput mutex to insert instance to jackInputs");
+    pthread_mutex_lock(&jackInputsMutex);
+    jackInputs.insert( pair<string,JackInput*>(dst_port_name,this) );
     pthread_mutex_unlock(&jackInputsMutex);
-    LOG4CXX_DEBUG(l,"jack port to jackInputs inserted");
+    LOG4CXX_DEBUG(l,"jack port to jackInputs inserted, port ready to work");
 };
 
 
 JackInput::~JackInput() {
     // Delete input port
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
+    string logger_name ("input.jack."); 
+    logger_name += string(dst_port_name) + ".destructor";
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(logger_name));
+
     LOG4CXX_DEBUG(l, "JackInput destructor called");
-    printf(jack_port_name(dst_port));
-    //const char *src_port_name = jack_port_name(src_port);
 
     LOG4CXX_DEBUG(l, "Disconnecting ports");
     if (jack_port_unregister(get_client(), dst_port)) {
         LOG4CXX_ERROR(l, "Failed to remove port "<<jack_port_name(src_port));
     }
+
     pthread_mutex_lock(&jackInputsMutex);
-    jackInputs.erase(this);
+    jackInputs.erase(this->dst_port_name);
     pthread_mutex_unlock(&jackInputsMutex);
+
     LOG4CXX_DEBUG(l, "Deleted JackInput from jackInputs, ports are closed, leaving destructor");
 }
 
@@ -156,7 +165,7 @@ int WavInput::giveInput(buffer_t *buf_prop) {
 
 /// WavInput here ///
 int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.wav"));
 
     _fh = fopen(infile, "rb");
     if (_fh == NULL) {

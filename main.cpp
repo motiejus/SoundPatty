@@ -21,7 +21,7 @@
 #include "soundpatty.h"
 // TODO: #include <getopt.h>
 
-void its_over(double place) {
+void its_over(const char* noop, double place) {
     printf("FOUND, processed %.6f sec\n", place);
     exit(0);
 };
@@ -35,11 +35,7 @@ int main (int argc, char *argv[]) {
 		exit(1);
     }
 
-    log4cxx::LogManager::resetConfiguration();
-    log4cxx::LayoutPtr layoutPtr(new log4cxx::PatternLayout("%d{yyyy-MM-dd HH:mm:ss,SSS} [%t] %-19l %-5p - %m%n"));
-    log4cxx::AppenderPtr appenderPtr(new log4cxx::ConsoleAppender(layoutPtr, "System.err"));
-    log4cxx::BasicConfigurator::configure(appenderPtr);
-
+    log4cxx::PropertyConfigurator::configure("log4j.conf");
     log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
     l->setLevel(log4cxx::Level::getTrace());
 
@@ -57,8 +53,7 @@ int main (int argc, char *argv[]) {
         LOG4CXX_DEBUG(l,"Jack input instance, file: " << argv[4]);
         input = new JackInput(argv[4], &this_cfg);
     }
-    sleep(0.5);
-    pat = new SoundPatty(input, &this_cfg);
+    pat = new SoundPatty("nothing", input, &this_cfg);
     LOG4CXX_DEBUG(l,"Created first SoundPatty instance");
 
     if (argc == 3) { // Dump out via WAV

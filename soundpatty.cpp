@@ -21,9 +21,10 @@
 #include "input.h"
 
 void *SoundPatty::go_thread(void *args) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
     // This is the new function that is created in new thread
     SoundPatty *inst = (SoundPatty*) args;
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(string("sp.manager.")+inst->name));
+
     LOG4CXX_DEBUG(l,"Launching SoundPatty::go");
     if (inst->go() == 2) {
         LOG4CXX_WARN(l,"Timed out");
@@ -41,7 +42,7 @@ void SoundPatty::dump_out(const treshold_t args) { // STATIC
 };
 
 
-void SoundPatty::setAction(int action, char * cfg, void (*fn)(double)) {
+void SoundPatty::setAction(int action, char * cfg, void (*fn)(const char*, const double)) {
     _action = action;
     read_captured_values(cfg);
     _callback = fn; // What to do when we catch a pattern
@@ -53,7 +54,9 @@ void SoundPatty::setAction(int action) {
 };
 
 
-SoundPatty::SoundPatty(Input *input, all_cfg_t *all_cfg) { 
+SoundPatty::SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg) { 
+    this->name = (char*)malloc(strlen(name)+1);
+    strcpy(this->name, name);
     _input = input;
 	cfg = all_cfg->first;
 	volume = all_cfg->second;
@@ -62,7 +65,7 @@ SoundPatty::SoundPatty(Input *input, all_cfg_t *all_cfg) {
 
 
 all_cfg_t SoundPatty::read_cfg (const char * filename) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp.manager"));
 
 	map<string,double> cfg;
 	vector<sVolumes> volume;
@@ -119,7 +122,7 @@ int SoundPatty::setInput(Input * input) {
 
 
 int SoundPatty::go() {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(string("sp.catch.")+name));
 
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer_t buf;
@@ -232,7 +235,7 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
 //
 int SoundPatty::do_checking(const treshold_t tr) {
 
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp.check"));
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(string("sp.catch.")+name));
     //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Iterate through pa
@@ -284,7 +287,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
                 used_a.insert(a);
             } else { // This means the treshold is reached
                 // This kind of function is called when the pattern is recognized
-                _callback (tr.place + tr.sec);
+                _callback (name, tr.place + tr.sec);
                 return 1;
             }
             w++;

@@ -50,10 +50,10 @@ class JackInput : public Input {
     public:
         ~JackInput();
         static int jack_proc(jack_nframes_t nframes, void *arg);
-        static jack_client_t* get_client();
+        static long number_of_clients;
+        jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);
         char *src_port_name;
-        string dst_port_name;
 
         JackInput(const void * args, all_cfg_t *cfg);
         pthread_mutex_t data_mutex;
@@ -63,11 +63,12 @@ class JackInput : public Input {
 
     private:
         jack_port_t *dst_port, *src_port;
+        string dst_port_name;
         list<buffer_t> data_in;
 };
 
 extern jack_client_t * mainclient;
 extern pthread_mutex_t jackInputsMutex;
-extern set<JackInput*> jackInputs;
+extern map<string, JackInput*> jackInputs; // DST port full name, jackInput instance
 
 #endif //__INPUT_H_INCLUDED__
