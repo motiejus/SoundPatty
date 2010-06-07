@@ -26,6 +26,7 @@
 class Input {
     public:
         int SAMPLE_RATE, DATA_SIZE;
+        virtual ~Input() {};
         virtual int giveInput(buffer_t * buffer) {
             perror("giveInput not implemented, exiting\n");
 			exit(1);
@@ -47,6 +48,7 @@ class WavInput : public Input {
 
 class JackInput : public Input {
     public:
+        ~JackInput();
         static int jack_proc(jack_nframes_t nframes, void *arg);
         static jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);
@@ -64,7 +66,8 @@ class JackInput : public Input {
         list<buffer_t> data_in;
 };
 
+extern jack_client_t * mainclient;
 extern pthread_mutex_t jackInputsMutex;
-extern list<JackInput*> jackInputs;
+extern set<JackInput*> jackInputs;
 
 #endif //__INPUT_H_INCLUDED__

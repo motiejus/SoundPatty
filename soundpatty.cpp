@@ -20,6 +20,22 @@
 #include "soundpatty.h"
 #include "input.h"
 
+void *SoundPatty::go_thread(void *args) {
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
+    // This is the new function that is created in new thread
+    SoundPatty *inst = (SoundPatty*) args;
+    LOG4CXX_DEBUG(l,"Launching SoundPatty::go");
+    if (inst->go() == 2) {
+        LOG4CXX_WARN(l,"Timed out");
+    }
+    LOG4CXX_DEBUG(l,"Terminating SoundPatty instance");
+    // Process is over - either timeout or catch. Callbacks launched already.
+    // Must terminate SoundPatty and Input instances
+    delete inst->_input;
+    delete inst;
+    LOG4CXX_DEBUG(l,"SoundPatty and Input instances deleted. Exiting thread");
+}
+
 void SoundPatty::dump_out(const treshold_t args) { // STATIC
     printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
 };
@@ -102,16 +118,15 @@ int SoundPatty::setInput(Input * input) {
 };
 
 
-void SoundPatty::go() {
+int SoundPatty::go() {
     log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp"));
 
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
-        LOG4CXX_DEBUG(l,"Got buffer, length: " << buf.nframes);
+        LOG4CXX_TRACE(l,"Got buffer, length: " << buf.nframes);
         treshold_t ret;
-
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
             jack_default_audio_sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
@@ -124,14 +139,16 @@ void SoundPatty::go() {
                     SoundPatty::dump_out(ret);
                 }
                 if (_action == ACTION_CATCH) {
-                    SoundPatty::do_checking(ret);
+                    if (SoundPatty::do_checking(ret)) {
+                        // Caught pattern
+                        return 1;
+                    }
                 }
             }
         }
-
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
-            printf ("Timed out. Seconds passed: %.6f\n", (double)gSCounter/_input->SAMPLE_RATE);
-            return;
+            // Timeout. Return 2
+            return 2;
         }
     }
 };
@@ -213,7 +230,7 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
 // double sec - length of a found sample (sec)
 // int b - index (overall) of sample found
 //
-void SoundPatty::do_checking(const treshold_t tr) {
+int SoundPatty::do_checking(const treshold_t tr) {
 
     log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp.check"));
     //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
@@ -267,22 +284,21 @@ void SoundPatty::do_checking(const treshold_t tr) {
                 used_a.insert(a);
             } else { // This means the treshold is reached
                 // This kind of function is called when the pattern is recognized
-                //void(*end_fn)(workitm *, double) = (void*)(workitm *, double) _callback;
                 _callback (tr.place + tr.sec);
+                return 1;
             }
             w++;
             // End of work iteration array
         }
         if (used_a.find(a) == used_a.end()) {
             work.push_back(workitm(a,b));
-            //printf ("Pushed back %d %d\n", a,b);
         }
     }
+    return 0;
 };
 
 
 vector<string> explode(const string &delimiter, const string &str) { // Found somewhere on NET
-
     vector<string> arr;
     int strleng = str.length();
     int delleng = delimiter.length();

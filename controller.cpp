@@ -33,9 +33,9 @@ void *go_sp(void *port_name_a) {
 
 */
 void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("controller"));
     if (!connect) {
-		LOG4CXX_DEBUG(l,"Ports "<<jack_port_name(jack_port_by_id(client,a))<<" and "
+		LOG4CXX_TRACE(l,"Ports "<<jack_port_name(jack_port_by_id(client,a))<<" and "
 				<< jack_port_name(jack_port_by_id(client,b))<<" disconnect, ignoring");
 		return;
 	}
@@ -47,7 +47,7 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
         return;
     }
     if (!(JackPortIsOutput & jack_port_flags(port_a))) return;
-    LOG4CXX_INFO(l,"Adding to stack a: "<<jack_port_name(port_a)<<" (b: "<< jack_port_name(port_b)<<")");
+    LOG4CXX_INFO(l,"Adding to stack " << jack_port_name(port_a));
     pthread_mutex_lock(&p_queue_mutex);
     p_queue.push_back(port_a);
     pthread_mutex_unlock(&p_queue_mutex);
@@ -57,9 +57,8 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
 void its_over(double place) {
     log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
 	char msg[50];
-	sprintf(msg,"FOUND, processed %.6f sec\n", place);
+	sprintf(msg,"FOUND, processed %.6f sec", place);
     LOG4CXX_INFO(l,msg);
-	return;
 };
 
 int main () {
@@ -92,14 +91,13 @@ int main () {
 
     jack_set_port_connect_callback(client, port_connect, NULL);
     if (jack_activate (client)) { LOG4CXX_FATAL (l,"cannot activate client"); }
-    LOG4CXX_INFO(l,"Activated jack manager client");
+    LOG4CXX_DEBUG(l,"Activated jack manager client");
 
 	// Waiting for new client to come up. port_connect fills p_queue
     pthread_mutex_lock(&p_queue_mutex);
     while (1) {
         pthread_cond_wait(&p_queue_cond, &p_queue_mutex);
         while (!p_queue.empty()) {
-
             jack_port_t *port = p_queue.front();
             p_queue.pop_front();
             pthread_mutex_unlock(&p_queue_mutex);
@@ -109,9 +107,18 @@ int main () {
 
             // Create new SoundPatty instance here
             input = new JackInput(port_name, &this_cfg);
-            LOG4CXX_DEBUG(l,"Created new JackInput instance");
+            LOG4CXX_DEBUG(l,"Created new JackInput instance, creating SoundPatty");
             pat = new SoundPatty(input, &this_cfg);
+            LOG4CXX_DEBUG(l,"Created SoundPatty instance, setting action callback");
             pat->setAction(ACTION_CATCH, (char*)SP_TRES, its_over);
+
+            pthread_t tmp; pthread_attr_t attr; pthread_attr_init(&attr);
+            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+            if (int err = pthread_create(&tmp, &attr, SoundPatty::go_thread, (void*)pat)) {
+                LOG4CXX_ERROR(l,"Failed to create thread for "<<port_name<<", error "<<err);
+            }
+            LOG4CXX_INFO(l,"Launched new SoundPatty thread for "<<port_name);
+
             pthread_mutex_lock(&p_queue_mutex);
         }
 	}

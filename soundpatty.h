@@ -78,10 +78,11 @@ class SoundPatty {
         void setAction(int action);
         void setAction(int action, char * cfg, void (*fn)(double));
         static void dump_out(const treshold_t args);
-        void do_checking(const treshold_t args);
+        static void *go_thread(void *inst); // Same as SoundPatty::go(), but for pthreads
+        int do_checking(const treshold_t args);
         map<string, double> cfg;
         int setInput(Input*);
-        void go();
+        int go();
         unsigned long gMCounter, // How many matches we found
                       gSCounter; // How many samples we skipped
         int search_patterns (jack_default_audio_sample_t cur, treshold_t *);
@@ -92,10 +93,8 @@ class SoundPatty {
         list<workitm> work;
         vals_t vals;
         Input * _input;
-        int source_app;
         char *input_params;
 };
-
 
 vector<string> explode(const string &delimiter, const string &str);
 void fatal(void * r);

@@ -18,15 +18,15 @@
 
 #include "input.h"
 
-jack_client_t *JackInput::_client = NULL;
 JackInput *JackInput::jack_inst = NULL;
 
+jack_client_t *mainclient = NULL;
 pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
-list<JackInput*> jackInputs;
+set<JackInput*> jackInputs;
 
 int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
     pthread_mutex_lock(&jackInputsMutex);
-    for(list<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
+    for(set<JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
         JackInput *in_inst = *inp;
         pthread_mutex_lock(&in_inst->data_mutex);
 
@@ -44,46 +44,84 @@ int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
 
 jack_client_t *JackInput::get_client() {
     log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
-    if (_client == NULL) { // Jack client initialization (SINGLETON)
+    bool new_client = false;
+    if (mainclient == NULL) { // Jack client initialization (SINGLETON should be called)
+        new_client = true;
         ostringstream dst_port_str, dst_client_str;
         dst_client_str << "sp_client_" << getpid();
-        if ((JackInput::_client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
+        if ((mainclient = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
 			LOG4CXX_FATAL(l,"jack server not running?\n");
 			exit(1);
         }
-        jack_set_process_callback(_client, JackInput::jack_proc, NULL);
-        if (jack_activate (_client)) { LOG4CXX_FATAL(l,"cannot activate client"); }
+        LOG4CXX_INFO(l,"Created new jack client "<< dst_client_str.str());
+        if (jack_set_process_callback(mainclient, JackInput::jack_proc, NULL)) {
+			LOG4CXX_FATAL(l,"Failed to set process registration callback for " << dst_client_str.str());
+        }
+        LOG4CXX_DEBUG(l,"Created process callback jack_proc for "<< dst_client_str.str());
+        if (jack_activate (mainclient)) { LOG4CXX_FATAL(l,"cannot activate client"); }
+        LOG4CXX_INFO(l,"Activated jack client "<< dst_client_str.str());
     }
-    return JackInput::_client;
+    if (new_client) {
+        LOG4CXX_INFO(l,"NEW Jack client requested");
+    } else {
+        LOG4CXX_DEBUG(l, "Jack client requested, returned old one");
+    }
+    return mainclient;
 };
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
-    pthread_mutex_init(&jackInputsMutex, NULL);
 
     data_in;
     pthread_mutex_init(&data_mutex, NULL);
 	pthread_cond_init(&condition_cond, NULL);
+    jack_client_t *client = JackInput::get_client();
 
     char *src_port_name = (char*) args;
+    src_port = jack_port_by_name(client, src_port_name);
 
-    jack_client_t *client = JackInput::get_client();
     SAMPLE_RATE = jack_get_sample_rate (client);
     cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
     cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
 
+    LOG4CXX_DEBUG(l,"Locking JackInput mutex to insert instance to jackInputs");
     pthread_mutex_lock(&jackInputsMutex);
-    jackInputs.push_back(this);
-    pthread_mutex_unlock(&jackInputsMutex);
+    LOG4CXX_DEBUG(l,"Mutex locked, inserting");
+    jackInputs.insert(this);
 
-    dst_port = jack_port_register (client, "input", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+    char shortname[15];
+    if (jack_port_name_size() <= 15) {
+        LOG4CXX_FATAL(l,"Too short jack port name supported");
+        exit(1);
+    }
+    sprintf(shortname, "input_%d", jackInputs.size());
+    dst_port = jack_port_register (client, shortname, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
         LOG4CXX_FATAL(l,"Failed to connect "<<src_port_name<<" to "<<jack_port_name(dst_port)<<", exiting.\n");
 		exit(1);
     }
+    pthread_mutex_unlock(&jackInputsMutex);
+    LOG4CXX_DEBUG(l,"jack port to jackInputs inserted");
 };
 
+
+JackInput::~JackInput() {
+    // Delete input port
+    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
+    LOG4CXX_DEBUG(l, "JackInput destructor called");
+    printf(jack_port_name(dst_port));
+    //const char *src_port_name = jack_port_name(src_port);
+
+    LOG4CXX_DEBUG(l, "Disconnecting ports");
+    if (jack_port_unregister(get_client(), dst_port)) {
+        LOG4CXX_ERROR(l, "Failed to remove port "<<jack_port_name(src_port));
+    }
+    pthread_mutex_lock(&jackInputsMutex);
+    jackInputs.erase(this);
+    pthread_mutex_unlock(&jackInputsMutex);
+    LOG4CXX_DEBUG(l, "Deleted JackInput from jackInputs, ports are closed, leaving destructor");
+}
 
 int JackInput::giveInput(buffer_t *buffer) {
     // Create a new thread and wait for input. When get a buffer - return back.
