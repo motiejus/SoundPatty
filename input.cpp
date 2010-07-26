@@ -17,7 +17,6 @@
  */
 
 #include "input.h"
-#include "logger.h"
 
 JackInput *JackInput::jack_inst = NULL;
 long JackInput::number_of_clients = 0; // Counter of jack clients
@@ -27,15 +26,14 @@ jack_client_t *mainclient = NULL;
 pthread_mutex_t jackInputsMutex = PTHREAD_MUTEX_INITIALIZER;
 map<string,JackInput*> jackInputs;
 
-int JackInput::jack_proc(jack_nframes_t nframes, void *arg) {
-
+int JackInput::jack_proc(nframes_t nframes, void *arg) {
     pthread_mutex_lock(&jackInputsMutex);
     for(map<string,JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
         JackInput *in_inst = inp->second;
         pthread_mutex_lock(&in_inst->data_mutex);
 
         buffer_t buffer;
-        buffer.buf = (jack_default_audio_sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
+        buffer.buf = (sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
         buffer.nframes = nframes;
         in_inst->data_in.push_back(buffer);
         pthread_cond_signal(&in_inst->condition_cond);
@@ -150,9 +148,9 @@ int WavInput::giveInput(buffer_t *buf_prop) {
     size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
 
     // :HACK: fix this, do not depend on jack types where you don't need!
-    jack_default_audio_sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
+    sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
     for(unsigned int i = 0; i < read_size; i++) {
-        buf2[i] = (jack_default_audio_sample_t)buf[i];
+        buf2[i] = (sample_t)buf[i];
     }
     buf_prop->buf = buf2;
     buf_prop->nframes = read_size;

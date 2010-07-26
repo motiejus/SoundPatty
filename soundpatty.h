@@ -47,7 +47,7 @@ class Range {
 
 struct sVolumes {
     unsigned long head, tail;
-	jack_default_audio_sample_t min, max;
+	sample_t min, max;
     bool proc;
 };
 
@@ -85,7 +85,7 @@ class SoundPatty {
         int go();
         unsigned long gMCounter, // How many matches we found
                       gSCounter; // How many samples we skipped
-        int search_patterns (jack_default_audio_sample_t cur, treshold_t *);
+        int search_patterns (sample_t cur, treshold_t *);
         vector<sVolumes> volume;
         char *name; // Each instance has a name
     private:
@@ -103,8 +103,8 @@ void fatal(void * r);
 void fatal(char * msg);
 
 typedef struct {
-    jack_default_audio_sample_t * buf;
-    jack_nframes_t nframes;
+    sample_t * buf;
+    nframes_t nframes;
 } buffer_t;
 
 #endif //__SOUNDPATTY_H_INCLUDED__

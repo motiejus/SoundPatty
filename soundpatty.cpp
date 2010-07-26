@@ -19,7 +19,6 @@
 
 #include "soundpatty.h"
 #include "input.h"
-#include "logger.h"
 
 void *SoundPatty::go_thread(void *args) {
     // This is the new function that is created in new thread
@@ -130,7 +129,7 @@ int SoundPatty::go() {
         treshold_t ret;
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
-            jack_default_audio_sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
+            sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
             if (search_patterns(cur, &ret))
             {
                 /*
@@ -181,7 +180,7 @@ void SoundPatty::read_captured_values(const char * filename) {
 };
 
 
-int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * ret) {
+int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
     int v = 0; // Counter for volume
     for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
         if (V->min <= cur && cur <= V->max) {

@@ -49,7 +49,7 @@ class WavInput : public Input {
 class JackInput : public Input {
     public:
         ~JackInput();
-        static int jack_proc(jack_nframes_t nframes, void *arg);
+        static int jack_proc(nframes_t nframes, void *arg);
         static long number_of_clients;
         jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);

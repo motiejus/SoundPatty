@@ -19,7 +19,6 @@
 #include "main.h"
 #include "input.h"
 #include "soundpatty.h"
-#include "logger.h"
 // TODO: #include <getopt.h>
 
 void its_over(const char* noop, double place) {
