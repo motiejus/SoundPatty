@@ -1,5 +1,5 @@
 /*
- *  input.h
+ *  wavinput.h
  *
  *  Copyright (c) 2010 Motiejus Jakštys
  *
@@ -17,19 +17,20 @@
  */
 
 
-#ifndef __INPUT_H_INCLUDED__
-#define __INPUT_H_INCLUDED__
+#ifndef __WAVINPUT_H_INCLUDED__
+#define __WAVINPUT_H_INCLUDED__
 
-#include "main.h"
+#include "input.h"
 
-class Input {
+class WavInput : public Input {
     public:
-        int SAMPLE_RATE, DATA_SIZE;
-        virtual ~Input() {};
-        virtual int giveInput(buffer_t * buffer) {
-            perror("giveInput not implemented, exiting\n");
-			exit(1);
-        };
+        int giveInput(buffer_t *);
+        WavInput(const void *, all_cfg_t *);
+    protected:
+        int process_headers(const char * infile, all_cfg_t *);
+        bool check_sample (const char * sample, const char * b);
+    private:
+        FILE *_fh;
 };
 
-#endif //__INPUT_H_INCLUDED__
+#endif //__WAVINPUT_H_INCLUDED__

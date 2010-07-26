@@ -22,7 +22,7 @@
 
 #include "main.h"
 #include "soundpatty.h"
-#include "input.h"
+#include "jackinput.h"
 
 #define SP_PATH "./"
 #define SP_CONF SP_PATH "config.cfg"

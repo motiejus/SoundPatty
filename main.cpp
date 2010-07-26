@@ -17,7 +17,8 @@
  */
 
 #include "main.h"
-#include "input.h"
+#include "wavinput.h"
+#include "jackinput.h"
 #include "soundpatty.h"
 // TODO: #include <getopt.h>
 

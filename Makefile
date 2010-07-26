@@ -3,21 +3,21 @@ DEPS=`pkg-config --libs jack` -std=gnu++0x -g
 
 all: main controller
 
-main: main.o soundpatty.o input.o logger.o
-	g++ ${DEPS} main.o soundpatty.o input.o logger.o -o main
-main.o: main.cpp main.h input.h soundpatty.h logger.h
-	g++ ${DEPS} -c main.cpp
+main: wavinput.o logger.o main.h soundpatty.o wavinput.o jackinput.o
+	g++ ${DEPS} main.cpp logger.o wavinput.o jackinput.o soundpatty.o -o controller
+controller: controller.o soundpatty.o wavinput.o jackinput.o logger.o
+	g++ ${DEPS} logger.o controller.cpp soundpatty.o wavinput.o jackinput.o -o controller
 soundpatty.o: main.h soundpatty.cpp soundpatty.h input.h logger.h
 	g++ ${DEPS} -c soundpatty.cpp
-input.o: main.h input.cpp input.h soundpatty.h logger.h
-	g++ ${DEPS} -c input.cpp
+wavinput.o: wavinput.cpp wavinput.h input.h
+	g++ ${DEPS} -c wavinput.cpp
+jackinput.o: jackinput.cpp jackinput.h input.h
+	g++ ${DEPS} -c wavinput.cpp jackinput.cpp
 logger.o: logger.h
 	g++ ${DEPS} -c logger.cpp
+main.h: types.h logger.h
+input.h: main.h
+
 
 clean:
-	rm -f main soundpatty.o input.o main.o controller controller.o logger.o
-
-controller: controller.o soundpatty.o input.o logger.o
-	g++ ${DEPS} logger.o controller.o soundpatty.o input.o -o controller
-controller.o: controller.cpp controller.h logger.o
-	g++ ${DEPS} -c controller.cpp
+	rm -f main soundpatty.o wavinput.o jackinput.o controller logger.o

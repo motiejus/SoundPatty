@@ -22,53 +22,6 @@
 
 #include "main.h"
 
-struct treshold_t {
-    int r; // Volume index (from configs)
-    double place, // Absolute place in file
-           sec; // Length of treshold
-    unsigned long b; // Number of found treshold
-};
-
-class Range {
-    public:
-        Range() { tm = tmin = tmax = 0; };
-        Range(const double & a) { tm = a; tmin = a * 0.89; tmax = a * 1.11; }
-        Range(const double & tmin, const double &tm, const double &tmax) { this->tmin = tmin; this->tm = tm; this->tmax = tmax; }
-        Range(const double & tmin, const double &tmax) { this->tmin = tmin; this->tmax = tmax; }
-        Range operator = (const double i) { return Range(i); }
-        bool operator == (const double & i) const { return tmin < i && i < tmax; }
-        bool operator == (const Range & r) const { return r == tm; }
-        bool operator > (const double & i) const { return i > tmax; }
-        bool operator > (const Range & r) const { return r > tm; }
-        bool operator < (const double & i) const { return i < tmin; }
-        bool operator < (const Range & r) const { return r < tm; }
-        double tmin, tm, tmax;
-};
-
-struct sVolumes {
-    unsigned long head, tail;
-	sample_t min, max;
-    bool proc;
-};
-
-struct valsitm_t {
-    int c; // Counter in map
-    double place;
-};
-
-typedef multimap<pair<int, Range>, valsitm_t> vals_t;
-
-class workitm {
-    public:
-        int len,a;
-        unsigned long b;
-
-        workitm(int, unsigned long);
-        list<pair<int, unsigned long> > trace;
-};
-
-typedef pair<map<string,double>, vector<sVolumes> > all_cfg_t;
-
 class Input;
 class SoundPatty {
     public:
@@ -101,10 +54,5 @@ vector<string> explode(const string &delimiter, const string &str);
 void fatal(void * r);
 
 void fatal(char * msg);
-
-typedef struct {
-    sample_t * buf;
-    nframes_t nframes;
-} buffer_t;
 
 #endif //__SOUNDPATTY_H_INCLUDED__

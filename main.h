@@ -40,9 +40,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+using namespace std;
+
+#include "types.h"
 #include "logger.h"
 
-using namespace std;
 
 #define SRC_WAV 0
 #define SRC_JACK_ONE 1
@@ -51,13 +53,5 @@ using namespace std;
 #define ACTION_CATCH 1
 
 #define BUFFERSIZE 1
-
-#ifdef HAS_JACK
-#define nframes_t jack_nframes_t
-#define sample_t jack_audio_sample_t
-#else
-#define nframes_t uint32_t
-#define sample_t float
-#endif
 
 #endif // __SP_MAIN_H_INCLUDED__
