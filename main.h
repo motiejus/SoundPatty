@@ -40,12 +40,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "log4cxx/logger.h"
-#include "log4cxx/propertyconfigurator.h"
-
 using namespace std;
-//using namespace log4cxx;
-
 
 #define SRC_WAV 0
 #define SRC_JACK_ONE 1
@@ -55,4 +50,4 @@ using namespace std;
 
 #define BUFFERSIZE 1
 
-#endif //__SP_MAIN_H_INCLUDED__
+#endif

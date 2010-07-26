@@ -6,7 +6,7 @@
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 3.
 
- *  This program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be usefu
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
@@ -19,6 +19,7 @@
 #include "main.h"
 #include "input.h"
 #include "soundpatty.h"
+#include "logger.h"
 // TODO: #include <getopt.h>
 
 void its_over(const char* noop, double place) {
@@ -35,39 +36,34 @@ int main (int argc, char *argv[]) {
 		exit(1);
     }
 
-    log4cxx::PropertyConfigurator::configure("log4j.cfg");
-    log4cxx::LoggerPtr l(log4cxx::Logger::getRootLogger());
-    l->setLevel(log4cxx::Level::getTrace());
-
-
-    LOG4CXX_DEBUG(l,"Starting to read configs from " << argv[1]);
+    LOG_DEBUG("Starting to read configs from %s", argv[1]);
     all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
     Input *input;
     SoundPatty *pat;
 
     if (argc == 3 || argc == 4) { // WAV
-        LOG4CXX_DEBUG(l,"Wav input, input file: " << argv[argc - 1]);
+        LOG_DEBUG("Wav input, input file: %s");
         input = new WavInput(argv[argc-1], &this_cfg);
     }
     if (argc == 5) { // Catch Jack
-        LOG4CXX_DEBUG(l,"Jack input instance, file: " << argv[4]);
+        LOG_DEBUG("Jack input instance, file: %s", argv[4]);
         input = new JackInput(argv[4], &this_cfg);
     }
     pat = new SoundPatty("nothing", input, &this_cfg);
-    LOG4CXX_DEBUG(l,"Created first SoundPatty instance");
+    LOG_DEBUG("Created first SoundPatty instance");
 
     if (argc == 3) { // Dump out via WAV
         pat->setAction(ACTION_DUMP);
-        LOG4CXX_DEBUG(l,"Action is DUMP");
+        LOG_DEBUG("Action is DUMP");
     }
     if (argc == 4 || argc == 5) { // Catch WAV or Jack
         pat->setAction(ACTION_CATCH, argv[2], its_over);
-        LOG4CXX_DEBUG(l,"Action is CATCH, filename: " << argv[2]);
+        LOG_DEBUG("Action is CATCH, filename: %s", argv[2]);
     }
     // Hmm if more - we can create new SoundPatty instances right here! :-)
-    LOG4CXX_INFO(l,"Starting main SoundPatty loop");
+    LOG_INFO("Starting main SoundPatty loop");
     pat->go();
-    LOG4CXX_INFO(l,"SoundPatty main loop completed");
+    LOG_INFO("SoundPatty main loop completed");
 
     exit(0);
 }

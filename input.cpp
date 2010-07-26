@@ -6,7 +6,7 @@
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 3.
 
- *  This program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be usefu
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
@@ -17,6 +17,7 @@
  */
 
 #include "input.h"
+#include "logger.h"
 
 JackInput *JackInput::jack_inst = NULL;
 long JackInput::number_of_clients = 0; // Counter of jack clients
@@ -48,34 +49,32 @@ jack_client_t *JackInput::get_client() {
     string logger_name ("input.jack."); 
     logger_name += string(dst_port_name);
 
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(logger_name));
     bool new_client = false;
     if (mainclient == NULL) { // Jack client initialization (SINGLETON should be called)
         new_client = true;
         ostringstream dst_port_str, dst_client_str;
         dst_client_str << "sp_client_" << getpid();
         if ((mainclient = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
-			LOG4CXX_FATAL(l,"jack server not running?\n");
+			LOG_FATAL("jack server not running?\n");
 			exit(1);
         }
-        LOG4CXX_INFO(l,"Created new jack client "<< dst_client_str.str());
+        LOG_INFO("Created new jack client %s", dst_client_str.str().c_str());
         if (jack_set_process_callback(mainclient, JackInput::jack_proc, NULL)) {
-			LOG4CXX_FATAL(l,"Failed to set process registration callback for " << dst_client_str.str());
+			LOG_FATAL("Failed to set process registration callback for %s", dst_client_str.str().c_str());
         }
-        LOG4CXX_DEBUG(l,"Created process callback jack_proc for "<< dst_client_str.str());
-        if (jack_activate (mainclient)) { LOG4CXX_FATAL(l,"cannot activate client"); }
-        LOG4CXX_INFO(l,"Activated jack client "<< dst_client_str.str());
+        LOG_DEBUG("Created process callback jack_proc for %s", dst_client_str.str().c_str());
+        if (jack_activate (mainclient)) { LOG_FATAL("cannot activate client"); }
+        LOG_INFO("Activated jack client %s", dst_client_str.str().c_str());
     }
     if (new_client) {
-        LOG4CXX_INFO(l,"NEW Jack client requested");
+        LOG_INFO("NEW Jack client requested");
     } else {
-        LOG4CXX_DEBUG(l, "Jack client requested, returned old one");
+        LOG_DEBUG( "Jack client requested, returned old one");
     }
     return mainclient;
 };
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.jack"));
 
     data_in;
     pthread_mutex_init(&data_mutex, NULL);
@@ -91,7 +90,7 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
 
     char shortname[15];
     if (jack_port_name_size() <= 15) {
-        LOG4CXX_FATAL(l,"Too short jack port name supported");
+        LOG_FATAL("Too short jack port name supported");
         exit(1);
     }
 
@@ -100,15 +99,15 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     dst_port_name = string(jack_port_name(dst_port));
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
-        LOG4CXX_FATAL(l,"Failed to connect "<<src_port_name<<" to "<<jack_port_name(dst_port)<<", exiting.\n");
+        LOG_FATAL("Failed to connect %s to %s, exiting.\n", src_port_name, jack_port_name(dst_port));
 		exit(1);
     }
 
-    LOG4CXX_DEBUG(l,"Locking JackInput mutex to insert instance to jackInputs");
+    LOG_DEBUG("Locking JackInput mutex to insert instance to jackInputs");
     pthread_mutex_lock(&jackInputsMutex);
     jackInputs.insert( pair<string,JackInput*>(dst_port_name,this) );
     pthread_mutex_unlock(&jackInputsMutex);
-    LOG4CXX_DEBUG(l,"jack port to jackInputs inserted, port ready to work");
+    LOG_DEBUG("jack port to jackInputs inserted, port ready to work");
 };
 
 
@@ -116,20 +115,19 @@ JackInput::~JackInput() {
     // Delete input port
     string logger_name ("input.jack."); 
     logger_name += string(dst_port_name) + ".destructor";
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(logger_name));
 
-    LOG4CXX_DEBUG(l, "JackInput destructor called");
+    LOG_DEBUG( "JackInput destructor called");
 
-    LOG4CXX_DEBUG(l, "Disconnecting ports");
+    LOG_DEBUG( "Disconnecting ports");
     if (jack_port_unregister(get_client(), dst_port)) {
-        LOG4CXX_ERROR(l, "Failed to remove port "<<jack_port_name(src_port));
+        LOG_ERROR( "Failed to remove port %s", jack_port_name(src_port));
     }
 
     pthread_mutex_lock(&jackInputsMutex);
     jackInputs.erase(this->dst_port_name);
     pthread_mutex_unlock(&jackInputsMutex);
 
-    LOG4CXX_DEBUG(l, "Deleted JackInput from jackInputs, ports are closed, leaving destructor");
+    LOG_DEBUG( "Deleted JackInput from jackInputs, ports are closed, leaving destructor");
 }
 
 int JackInput::giveInput(buffer_t *buffer) {
@@ -165,11 +163,10 @@ int WavInput::giveInput(buffer_t *buf_prop) {
 
 /// WavInput here ///
 int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("input.wav"));
 
     _fh = fopen(infile, "rb");
     if (_fh == NULL) {
-        LOG4CXX_FATAL(l,"Failed to open file "<<infile<<", exiting");
+        LOG_FATAL("Failed to open file %s, exiting", infile);
 		exit(1);
     }
 
@@ -179,7 +176,7 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
 
     char sample[] = "RIFF";
     if (! check_sample(sample, header) ) {
-        LOG4CXX_FATAL(l, "RIFF header not found in "<< infile <<", exiting");
+        LOG_FATAL( "RIFF header not found in %s, exiting", infile);
 		exit(1);
     }
     // Checking for compression code (21'st byte is 01, 22'nd - 00, little-endian notation
@@ -187,12 +184,12 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
     fseek(_fh, 0x14, 0); // offset = 20 bytes
     fread(&tmp, 2, 2, _fh); // Reading two two-byte samples (comp. code and no. of channels)
     if ( tmp[0] != 1 ) {
-        LOG4CXX_FATAL(l, "Only PCM(1) supported, compression code given: " << tmp[0]);
+        LOG_FATAL( "Only PCM(1) supported, compression code given: %d", tmp[0]);
 		exit(1);
     }
     // Number of channels must be "MONO"
     if ( tmp[1] != 1 ) {
-        LOG4CXX_FATAL(l, "Only MONO supported, given number of channels: " << tmp[1]);
+        LOG_FATAL( "Only MONO supported, given number of channels: %d", tmp[1]);
 		exit(1);
     }
     fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
@@ -202,7 +199,7 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
     uint16_t BitsPerSample;
     fread(&BitsPerSample, 1, 2, _fh);
     if (BitsPerSample != 16) {
-        LOG4CXX_FATAL(l, "Only 16-bit WAVs supported, given: " << BitsPerSample);
+        LOG_FATAL( "Only 16-bit WAVs supported, given: %d", BitsPerSample);
 		exit(1);
     }
     // Get data chunk size here
@@ -210,7 +207,7 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
     strcpy(sample, "data");
 
     if (! check_sample(sample, header)) {
-        LOG4CXX_FATAL (l,"data chunk not found in byte offset=36, file corrupted.");
+        LOG_FATAL ("data chunk not found in byte offset=36, file corrupted.");
 		exit(1);
     }
     int DATA_SIZE;

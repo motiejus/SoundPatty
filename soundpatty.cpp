@@ -19,22 +19,22 @@
 
 #include "soundpatty.h"
 #include "input.h"
+#include "logger.h"
 
 void *SoundPatty::go_thread(void *args) {
     // This is the new function that is created in new thread
     SoundPatty *inst = (SoundPatty*) args;
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(string("sp.manager.")+inst->name));
 
-    LOG4CXX_DEBUG(l,"Launching SoundPatty::go");
+    LOG_DEBUG("Launching SoundPatty::go");
     if (inst->go() == 2) {
-        LOG4CXX_WARN(l,"Timed out");
+        LOG_WARN("Timed out");
     }
-    LOG4CXX_DEBUG(l,"Terminating SoundPatty instance");
+    LOG_DEBUG("Terminating SoundPatty instance");
     // Process is over - either timeout or catch. Callbacks launched already.
     // Must terminate SoundPatty and Input instances
     delete inst->_input;
     delete inst;
-    LOG4CXX_DEBUG(l,"SoundPatty and Input instances deleted. Exiting thread");
+    LOG_DEBUG("SoundPatty and Input instances deleted. Exiting thread");
 }
 
 void SoundPatty::dump_out(const treshold_t args) { // STATIC
@@ -65,7 +65,6 @@ SoundPatty::SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg) {
 
 
 all_cfg_t SoundPatty::read_cfg (const char * filename) {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger("sp.manager"));
 
 	map<string,double> cfg;
 	vector<sVolumes> volume;
@@ -74,7 +73,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
     try {
         file.open(filename);
     } catch (ifstream::failure e) {
-        LOG4CXX_FATAL(l,"Could not read config file " << filename);
+        LOG_FATAL("Could not read config file %s", filename);
         pthread_exit(NULL);
     }
 
@@ -88,7 +87,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
         double tmp; i >> tmp;
         cfg[line.substr(0,x)] = tmp;
     }
-    LOG4CXX_DEBUG(l,"Read " << cfg.size() << " config values from " << filename);
+    LOG_DEBUG("Read %d config values from %s", cfg.size(), filename);
 
     sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
@@ -108,7 +107,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
         }
     }
     if (max_index == 0) {
-        LOG4CXX_FATAL(l,"ERROR. Length of vol array: 0\n");
+        LOG_FATAL("ERROR. Length of vol array: 0\n");
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
 	return all_cfg_t(cfg, volume);
@@ -122,21 +121,23 @@ int SoundPatty::setInput(Input * input) {
 
 
 int SoundPatty::go() {
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(string("sp.catch.")+name));
 
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
-        LOG4CXX_TRACE(l,"Got buffer, length: " << buf.nframes);
+        LOG_TRACE("Got buffer, length: %d", buf.nframes);
         treshold_t ret;
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
             jack_default_audio_sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
             if (search_patterns(cur, &ret))
             {
-                LOG4CXX_TRACE(l,"Found pattern ("<<setw(3)<<ret.b<<") "
+                /*
+                LOG_TRACE("Found pattern ("<<setw(3)<<ret.b<<") "
                         "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<< setw(8) << ret.sec<<")");
+                        */
+                LOG_TRACE("Found pattern (%-.3f) %-.3f; %.6f; %.6f", ret.b, ret.r, ret.place, ret.sec);
 
                 if (_action == ACTION_DUMP) {
                     SoundPatty::dump_out(ret);
@@ -235,7 +236,6 @@ int SoundPatty::search_patterns (jack_default_audio_sample_t cur, treshold_t * r
 //
 int SoundPatty::do_checking(const treshold_t tr) {
 
-    log4cxx::LoggerPtr l(log4cxx::Logger::getLogger(string("sp.catch.")+name));
     //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Iterate through pa
@@ -263,7 +263,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
         /*
         char msg[200];
         sprintf(msg, "%d %.6f matches %.6f (%d)",in_a->first.first,tr.sec,in_a->first.second.tm,in_a->second.c);
-        LOG4CXX_TRACE(l,msg);
+        LOG_TRACE(msg);
         */
         int a = in_a->second.c;
         //------------------------------------------------------------
@@ -272,7 +272,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
         int i = 0; // Work list counter
         for (list<workitm>::iterator w = work.begin(); w != work.end(); i++) {
             if (b - w->b > round(cfg["maxsteps"])) {
-                LOG4CXX_TRACE(l,"Work item " << i << " removed, no match for a long time");
+                LOG_TRACE("Work item %d removed, no match for a long time", i);
                 work.erase(w); w = work.begin(); continue;
             }
             if (b == w->b || a - w->a > round(cfg["maxsteps"]) || w->a >= a) { w++; continue; }
@@ -282,7 +282,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
             //
             w->a = a; w->b = b;
             w->trace.push_back(pair<int,unsigned long>(a,b));
-            LOG4CXX_TRACE(l,"Work item " << i << " expanded to " << w->len+1 << " items")
+            LOG_TRACE("Work item %d expanded to %d items", i, w->len+1);
             if (++(w->len) < round(cfg["matchme"])) { // Proceeding with the "thread"
                 used_a.insert(a);
             } else { // This means the treshold is reached
