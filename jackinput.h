@@ -26,7 +26,7 @@ class JackInput : public Input {
     public:
         ~JackInput();
         static int jack_proc(nframes_t nframes, void *arg);
-        static long number_of_clients;
+        static int number_of_clients;
         jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);
         char *src_port_name;

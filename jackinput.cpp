@@ -19,7 +19,7 @@
 #include "jackinput.h"
 
 JackInput *JackInput::jack_inst = NULL;
-long JackInput::number_of_clients = 0; // Counter of jack clients
+int JackInput::number_of_clients = 0; // Counter of jack clients
 // Not protected by mutex, because accessed only in one thread
 
 jack_client_t *mainclient = NULL;
@@ -74,7 +74,8 @@ jack_client_t *JackInput::get_client() {
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
 
-    data_in;
+    // G++ SAYS THIS HAS NO EFFECT!
+    //data_in;
     pthread_mutex_init(&data_mutex, NULL);
 	pthread_cond_init(&condition_cond, NULL);
     jack_client_t *client = get_client();

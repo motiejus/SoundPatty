@@ -34,6 +34,7 @@ void *SoundPatty::go_thread(void *args) {
     delete inst->_input;
     delete inst;
     LOG_DEBUG("SoundPatty and Input instances deleted. Exiting thread");
+    return NULL;
 }
 
 void SoundPatty::dump_out(const treshold_t args) { // STATIC
@@ -154,6 +155,7 @@ int SoundPatty::go() {
             return 2;
         }
     }
+    return 0;
 };
 
 

@@ -4,7 +4,7 @@ DEPS=`pkg-config --libs jack` -std=gnu++0x -g
 all: main controller
 
 main: wavinput.o logger.o main.h soundpatty.o wavinput.o jackinput.o
-	g++ ${DEPS} main.cpp logger.o wavinput.o jackinput.o soundpatty.o -o controller
+	g++ ${DEPS} main.cpp logger.o wavinput.o jackinput.o soundpatty.o -o main
 controller: controller.o soundpatty.o wavinput.o jackinput.o logger.o
 	g++ ${DEPS} logger.o controller.cpp soundpatty.o wavinput.o jackinput.o -o controller
 soundpatty.o: main.h soundpatty.cpp soundpatty.h input.h logger.h
