@@ -30,15 +30,16 @@ def build(bld):
 		source		 = 'src/main.cpp '+common_src,
 		uselib		= 'JACK',
 		cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
-		install_path = '.'
+		install_path = '../'
 	)
-	bld(features     = ['cxx', 'cprogram'],
-		target       = 'controller',
-		source		 = 'src/controller.cpp '+common_src,
-		uselib		= 'JACK',
-		cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
-		install_path = '.'
-	)
+	if bld.env.HAVE_JACK:
+		bld(features     = ['cxx', 'cprogram'],
+			target       = 'controller',
+			source		 = 'src/controller.cpp '+common_src,
+			uselib		= 'JACK',
+			cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
+			install_path = '../'
+		)
 
 def test(sc):
 	import Scripting
