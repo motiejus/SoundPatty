@@ -25,7 +25,6 @@ int WavInput::giveInput(buffer_t *buf_prop) {
     }
     size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
 
-    // :HACK: fix this, do not depend on jack types where you don't need!
     sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
     for(unsigned int i = 0; i < read_size; i++) {
         buf2[i] = (sample_t)buf[i];

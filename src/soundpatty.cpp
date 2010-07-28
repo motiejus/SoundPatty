@@ -65,7 +65,6 @@ SoundPatty::SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg) {
 
 
 all_cfg_t SoundPatty::read_cfg (const char * filename) {
-
 	map<string,double> cfg;
 	vector<sVolumes> volume;
     ifstream file;
@@ -134,9 +133,9 @@ int SoundPatty::go() {
             if (search_patterns(cur, &ret))
             {
                 /*
-                LOG_TRACE("Found pattern ("<<setw(3)<<ret.b<<") "
-                        "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<< setw(8) << ret.sec<<")");
-                        */
+                   LOG_TRACE("Found pattern ("<<setw(3)<<ret.b<<") "
+                   "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<< setw(8) << ret.sec<<")");
+                 */
                 LOG_TRACE("Found pattern (%-.3f) %-.3f; %.6f; %.6f", ret.b, ret.r, ret.place, ret.sec);
 
                 if (_action == ACTION_DUMP) {
@@ -160,25 +159,25 @@ int SoundPatty::go() {
 
 
 void SoundPatty::read_captured_values(const char * filename) {
-        ifstream file;
-        file.open(filename);
-        string line;
-        for (int i = 0; !file.eof(); i++) {
-            getline(file, line);
-            if (line.size() == 0) break;
-            vector<string> numbers = explode(";", line);
-            istringstream num(numbers[0]);
-            istringstream place(numbers[1]);
-            istringstream range(numbers[2]);
+    ifstream file;
+    file.open(filename);
+    string line;
+    for (int i = 0; !file.eof(); i++) {
+        getline(file, line);
+        if (line.size() == 0) break;
+        vector<string> numbers = explode(";", line);
+        istringstream num(numbers[0]);
+        istringstream place(numbers[1]);
+        istringstream range(numbers[2]);
 
-            double tmp2;
-            pair<pair<int, Range>,valsitm_t > tmp;
-            num >> tmp2; tmp.first.first = tmp2; // Index in volume
-            range >> tmp2; tmp.first.second = Range(tmp2);
-            place >> tmp.second.place; // Place in the stream
-            tmp.second.c = i; // Counter in the stream
-            vals.insert(tmp);
-        }
+        double tmp2;
+        pair<pair<int, Range>,valsitm_t > tmp;
+        num >> tmp2; tmp.first.first = tmp2; // Index in volume
+        range >> tmp2; tmp.first.second = Range(tmp2);
+        place >> tmp.second.place; // Place in the stream
+        tmp.second.c = i; // Counter in the stream
+        vals.insert(tmp);
+    }
 };
 
 
@@ -262,10 +261,10 @@ int SoundPatty::do_checking(const treshold_t tr) {
     for (vals_t::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
     {
         /*
-        char msg[200];
-        sprintf(msg, "%d %.6f matches %.6f (%d)",in_a->first.first,tr.sec,in_a->first.second.tm,in_a->second.c);
-        LOG_TRACE(msg);
-        */
+           char msg[200];
+           sprintf(msg, "%d %.6f matches %.6f (%d)",in_a->first.first,tr.sec,in_a->first.second.tm,in_a->second.c);
+           LOG_TRACE(msg);
+         */
         int a = in_a->second.c;
         //------------------------------------------------------------
         // Check if it exists in our work array

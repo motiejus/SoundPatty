@@ -18,9 +18,12 @@
 
 #include "main.h"
 #include "wavinput.h"
-#include "jackinput.h"
 #include "soundpatty.h"
 // TODO: #include <getopt.h>
+
+#ifdef HAVE_JACK
+#include "jackinput.h"
+#endif
 
 void its_over(const char* noop, double place) {
     printf("FOUND, processed %.6f sec\n", place);
@@ -31,23 +34,28 @@ int main (int argc, char *argv[]) {
     if (argc < 3) {
         perror ("Usage: ./main config.cfg sample.wav\nor\n"
                 "./main config.cfg samplefile.txt catchable.wav\n"
-                "./main config.cfg samplefile.txt jack jack\n");
+#ifdef HAVE_JACK
+                "./main config.cfg samplefile.txt jack jack\n"
+#endif
+                );
 		exit(1);
     }
 
     LOG_DEBUG("Starting to read configs from %s", argv[1]);
     all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
-    Input *input;
     SoundPatty *pat;
+    Input *input = NULL;
 
     if (argc == 3 || argc == 4) { // WAV
         LOG_DEBUG("Wav input, input file: %s");
         input = new WavInput(argv[argc-1], &this_cfg);
     }
+#ifdef HAVE_JACK
     if (argc == 5) { // Catch Jack
         LOG_DEBUG("Jack input instance, file: %s", argv[4]);
         input = new JackInput(argv[4], &this_cfg);
     }
+#endif
     pat = new SoundPatty("nothing", input, &this_cfg);
     LOG_DEBUG("Created first SoundPatty instance");
 

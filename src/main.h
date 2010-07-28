@@ -42,9 +42,9 @@
 
 using namespace std;
 
+#include "config.h"
 #include "types.h"
 #include "logger.h"
-
 
 #define SRC_WAV 0
 #define SRC_JACK_ONE 1

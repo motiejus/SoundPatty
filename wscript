@@ -9,10 +9,36 @@ def set_options(opt):
 	opt.add_option('--disable', action='store')
 
 def configure(conf):
-	conf.recurse('src')
+	print('→ configuring the project')
+
+	conf.check_cfg(atleast_pkgconfig_version='0.0.0')
+	conf.check_cfg(package='jack', args='--libs', uselib_store="JACK")
+
+	conf.check_tool('compiler_cxx')
+	conf.write_config_header('config.h')
+	#conf.env.COMP = "bac"
 
 def build(bld):
-	bld.recurse('src')
+	bld.use_the_magic()
+
+	common_src = 'src/logger.cpp src/soundpatty.cpp src/wavinput.cpp'
+	if bld.env.HAVE_JACK:
+		common_src += ' src/jackinput.cpp'
+
+	bld(features     = ['cxx', 'cprogram'],
+		target       = 'main',
+		source		 = 'src/main.cpp '+common_src,
+		uselib		= 'JACK',
+		cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
+		install_path = '.'
+	)
+	bld(features     = ['cxx', 'cprogram'],
+		target       = 'controller',
+		source		 = 'src/controller.cpp '+common_src,
+		uselib		= 'JACK',
+		cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
+		install_path = '.'
+	)
 
 def test(sc):
 	import Scripting
