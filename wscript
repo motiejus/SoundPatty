@@ -7,21 +7,7 @@ def set_options(opt):
 	opt.add_option('--disable', action='store')
 
 def configure(conf):
-	print('→ configuring the project')
-
-	conf.check_cfg(atleast_pkgconfig_version='0.0.0')
-	conf.check_cfg(package='jack', args='--libs', uselib_store="JACK")
-
-	conf.check_tool('compiler_cxx')
-	conf.write_config_header('config.h')
+	conf.recurse('src')
 
 def build(bld):
-	bld.use_the_magic()
-
-	bld(features     = ['cxx', 'cprogram'],
-		target       = 'main',
-		source		 = 'main.cpp logger.cpp soundpatty.cpp wavinput.cpp jackinput.cpp',
-		uselib		= 'JACK',
-		cxxflags      = ['-Wall', '-g'],
-	)
-#print ('building SoundPatty')
+	bld.recurse('src')
