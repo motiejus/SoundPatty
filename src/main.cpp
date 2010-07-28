@@ -31,8 +31,7 @@ int main (int argc, char *argv[]) {
     if (argc < 3) {
         perror ("Usage: ./main config.cfg sample.wav\nor\n"
                 "./main config.cfg samplefile.txt catchable.wav\n"
-                "./main config.cfg samplefile.txt jack jack\n"
-				"./main (jack input, self-capturing ports, most feature-rich args");
+                "./main config.cfg samplefile.txt jack jack\n");
 		exit(1);
     }
 

@@ -14,7 +14,7 @@ Installs to current (source directory), so launch it bravely.
 
 ### USAGE ###
 Let's see an example:
-	wget http://www.nch.com.au/acm/8k16bitpcm.wav -O sample.wav
+	wget http://github.com/downloads/Motiejus/SoundPatty/sample.wav
 This is our sample (imagine advertisment) we will try to find in our "stream".
 	make -s && ./main sample.cfg sample.wav > samplefile.txt
 This creates the treshold file.
