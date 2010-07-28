@@ -23,7 +23,7 @@
 
 #ifdef HAVE_JACK
 #include "jackinput.h"
-#endif
+#endif // HAVE_JACK
 
 void its_over(const char* noop, double place) {
     printf("FOUND, processed %.6f sec\n", place);
@@ -36,7 +36,7 @@ int main (int argc, char *argv[]) {
                 "./main config.cfg samplefile.txt catchable.wav\n"
 #ifdef HAVE_JACK
                 "./main config.cfg samplefile.txt jack jack\n"
-#endif
+#endif // HAVE_JACK
                 );
 		exit(1);
     }
@@ -46,10 +46,12 @@ int main (int argc, char *argv[]) {
     SoundPatty *pat;
     Input *input = NULL;
 
-    if (argc == 3 || argc == 4) { // WAV
-        LOG_DEBUG("Wav input, input file: %s");
+    if (argc == 3 or argc == 4) { // WAV
         input = new WavInput(argv[argc-1], &this_cfg);
+        LOG_DEBUG("Wav input, input file: %s, created instance", argv[argc-1]);
     }
+	LOG_DEBUG("WavInput instance should've been created");
+
 #ifdef HAVE_JACK
     if (argc == 5) { // Catch Jack
         LOG_DEBUG("Jack input instance, file: %s", argv[4]);

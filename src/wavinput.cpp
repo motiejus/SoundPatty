@@ -20,10 +20,15 @@
 
 int WavInput::giveInput(buffer_t *buf_prop) {
     int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
+	LOG_DEBUG("I am fine");
+    size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
+	LOG_DEBUG("I`m OK");
+
     if (feof(_fh)) {
         return 0;
     }
-    size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
+	LOG_TRACE("I`m OK2");
+    //size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
 
     sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
     for(unsigned int i = 0; i < read_size; i++) {
@@ -38,7 +43,6 @@ int WavInput::giveInput(buffer_t *buf_prop) {
 
 /// WavInput here ///
 int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
-
     _fh = fopen(infile, "rb");
     if (_fh == NULL) {
         LOG_FATAL("Failed to open file %s, exiting", infile);
@@ -102,6 +106,7 @@ bool WavInput::check_sample (const char * sample, const char * b) { // My STRCPY
 
 
 WavInput::WavInput(const void * args, all_cfg_t *cfg) {
+	LOG_DEBUG("Called WavInput constructor, filename: %s", (char*)args);
     process_headers((char*)args, cfg);
     // ------------------------------------------------------------
     // Adjust _sp_ volume 

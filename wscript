@@ -1,7 +1,7 @@
 # vim:ts=4:sw=4:noet:ft=python:
 APPNAME='SoundPatty'
 VERSION='0.2'
-import os
+import os, Scripting
 from subprocess import Popen, PIPE
 
 def set_options(opt):
@@ -29,7 +29,7 @@ def build(bld):
 		target       = 'main',
 		source		 = 'src/main.cpp '+common_src,
 		uselib		= 'JACK',
-		cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
+		cxxflags      = ['-Wall', '-g', '-I', 'default/'],
 		install_path = '../'
 	)
 	if bld.env.HAVE_JACK:
@@ -42,7 +42,6 @@ def build(bld):
 		)
 
 def test(sc):
-	import Scripting
 	Scripting.commands += 'build install proc_test'.split()
 
 def proc_test(sc):
