@@ -6,8 +6,14 @@ You can listen to live radio station and log how many your advertisements are pl
 You can scan your music library for multiple recordings
 You can match special operator messages when trying to initiate a VoIP call (for example, "phone is out of radio coverage")
 
+### Compiling ###
+./waf configure; ./waf build
+Configures and builds the package
+./waf install
+Installs to current (source directory), so launch it bravely.
+
 ### USAGE ###
-Let's kick an example:
+Let's see an example:
 	wget http://www.nch.com.au/acm/8k16bitpcm.wav -O sample.wav
 This is our sample (imagine advertisment) we will try to find in our "stream".
 	make -s && ./main sample.cfg sample.wav > samplefile.txt
@@ -26,13 +32,10 @@ Third option is suitable for VoIP. You need just to open the Jack port with call
 
 ### TODO ###
 Major:
-* Make input type dependent on Input sub-class (unsigned int for Wav, jack_default_audio_t for Jack, other for other)
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
 * Test with -O2
+* Make Input classes codec-independent (probably using libsox)
 
 Somewhen:
-* Remove Jack dependencies where it is not nescesarry (ex. finding samples in WAV files should not need jack.h and pthreads)
-* Make shared libary out of "Soundpatty" and "{Jack,Wav}Input" classes instead of making system calls from controller
-* Clean-up Makefile or probably move to WAF.
-* Make the main matching algorithm based on tree (somehow). This would improve efficiency in "capturing".
 * Normal, configurable input arguments for main and controller.
+* Make the main matching algorithm based on tree (somehow). This would improve efficiency in "capturing".
