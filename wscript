@@ -16,29 +16,59 @@ def configure(conf):
 
 	conf.check_tool('compiler_cxx')
 	conf.write_config_header('config.h')
-	#conf.env.COMP = "bac"
 
 def build(bld):
-	bld.use_the_magic()
+	cxxflags = ['-Wall', '-g', '-I', 'default/']
+	uselib_local = []
 
-	common_src = 'src/logger.cpp src/soundpatty.cpp src/wavinput.cpp'
+	bld(features		= ['cxx', 'cstaticlib'],
+		source			= 'src/soundpatty.cpp',
+		target			= 'soundpatty',
+		cxxflags		= cxxflags,
+	)
+	uselib_local += ['soundpatty']
+
+	bld(features		= ['cxx', 'cstaticlib'],
+		source			= 'src/wavinput.cpp',
+		target			= 'wavinput',
+		cxxflags		= cxxflags,
+	)
+	uselib_local += ['wavinput']
+
+	bld(features		= ['cxx', 'cstaticlib'],
+		source			= 'src/logger.cpp',
+		target			= 'logger',
+		cxxflags		= cxxflags,
+	)
+	uselib_local += ['logger']
+
+	uselib = []
 	if bld.env.HAVE_JACK:
-		common_src += ' src/jackinput.cpp'
+		bld(features		= ['cxx', 'cstaticlib'],
+			source			= 'src/jackinput.cpp',
+			target			= 'jackinput',
+			cxxflags		= cxxflags,
+		)
+		uselib_local += ['jackinput']
+		uselib += ['JACK']
 
-	bld(features     = ['cxx', 'cprogram'],
-		target       = 'main',
-		source		 = 'src/main.cpp '+common_src,
-		uselib		= 'JACK',
-		cxxflags      = ['-Wall', '-g', '-I', 'default/'],
-		install_path = '../'
+	# and the executables
+	bld(features		= ['cxx', 'cprogram'],
+		source			= 'src/main.cpp',
+		target			= 'main',
+		uselib			= uselib,
+		cxxflags		= cxxflags,
+		uselib_local	= uselib_local,
+		install_path	= '../',
 	)
 	if bld.env.HAVE_JACK:
-		bld(features     = ['cxx', 'cprogram'],
-			target       = 'controller',
-			source		 = 'src/controller.cpp '+common_src,
-			uselib		= 'JACK',
-			cxxflags      = ['-Wall', '-g', '-O2', '-I', 'default/'],
-			install_path = '../'
+		bld(features		= ['cxx', 'cprogram'],
+			source			= 'src/controller.cpp',
+			target			= 'controller',
+			uselib			= uselib,
+			cxxflags		= cxxflags,
+			uselib_local	= uselib_local,
+			install_path	= '../',
 		)
 
 def test(sc):
