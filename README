@@ -14,26 +14,24 @@ Installs to current (source directory), so launch it bravely.
 
 ### USAGE ###
 Let's see an example:
-	wget http://github.com/downloads/Motiejus/SoundPatty/sample.wav
-This is our sample (imagine advertisment) we will try to find in our "stream".
-	make -s && ./main sample.cfg sample.wav > samplefile.txt
-This creates the treshold file.
-Then you have three options to provide "stream" to SoundPatty:
-Simple WAV:
-	./main config.cfg samplefile.txt catch_me.wav
+    ./waf configure test
+This downloads sample.wav and catch_me.wav. sample.wav is a sample we want to capture
+in a catch_me.wav stream. Listen to both wavs and it will be clearer :)
+
+SoundPatty now supports Wav (PCM 16-bit) and Jack inputs. You can try jack like this:
 Jack (single port):
 	$ mplayer -ao jack:name=mp 
 		(in another console)
 	$ ./main config.cfg samplefile.txt jack mp:out_0
-A third option - for automatic port capturing (when you want jack channel to be "hooked" automatically)
+Third option - for automatic port capturing (when you want jack channel to be "hooked" automatically)
 	$ ./controller
-See controller.h for configuration and constants (this has to be changed, of course)
-Third option is suitable for VoIP. You need just to open the Jack port with callee (caller) audio and SoundPatty will do everyting else for you :-)
+See controller.h for configuration and constants.
+Third option is suitable for VoIP. You need just to open the Jack port with callee (caller)
+    audio and SoundPatty will do everyting else for you :-)
 
 ### TODO ###
 Major:
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
-* Test with -O2
 * Make Input classes codec-independent (probably using libsox)
 
 Somewhen:

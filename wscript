@@ -18,7 +18,7 @@ def configure(conf):
 	conf.write_config_header('config.h')
 
 def build(bld):
-	cxxflags = ['-Wall', '-g', '-I', 'default/']
+	cxxflags = ['-Wall', '-O2', '-g', '-I', 'default/']
 	uselib_local = []
 
 	bld(features		= ['cxx', 'cstaticlib'],
