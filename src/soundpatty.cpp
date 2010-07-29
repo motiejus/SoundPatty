@@ -122,7 +122,7 @@ int SoundPatty::setInput(Input * input) {
 int SoundPatty::go() {
 
     string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
-    buffer_t *buf = NULL;
+    buffer_t *buf;
 
     while (_input->giveInput(buf) != 0) { // Have pointer to data
         LOG_TRACE("Got buffer, length: %d", buf->nframes);

@@ -19,22 +19,11 @@
 #include "wavinput.h"
 
 int WavInput::giveInput(buffer_t *buf_prop) {
-    int16_t buf [SAMPLE_RATE * BUFFERSIZE]; // Process buffer every BUFFERSIZE secs
-	LOG_DEBUG("I am fine");
-    size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
-	LOG_DEBUG("I`m OK");
-
     if (feof(_fh)) {
         return 0;
     }
-	LOG_TRACE("I`m OK2");
-    //size_t read_size = fread(buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
-
-    sample_t buf2 [SAMPLE_RATE * BUFFERSIZE];
-    for(unsigned int i = 0; i < read_size; i++) {
-        buf2[i] = (sample_t)buf[i];
-    }
-    buf_prop->buf = buf2;
+	buf_prop->buf = (sample_t*) calloc(SAMPLE_RATE * BUFFERSIZE, sizeof(sample_t));
+    size_t read_size = fread(buf_prop->buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
     buf_prop->nframes = read_size;
     return 1;
 };

@@ -35,9 +35,6 @@
 #include <fstream>
 
 #include <pthread.h>
-#ifdef HAS_JACK
-#include <jack/jack.h>
-#endif // HAS_JACK
 
 #include <sys/types.h>
 #include <unistd.h>

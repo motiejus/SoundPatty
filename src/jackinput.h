@@ -21,6 +21,9 @@
 #define __JACKINPUT_H_INCLUDED__
 
 #include "input.h"
+#ifdef HAVE_JACK
+#include <jack/jack.h>
+#endif // HAVE_JACK
 
 class JackInput : public Input {
     public:
