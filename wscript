@@ -13,12 +13,13 @@ def configure(conf):
 
 	conf.check_cfg(atleast_pkgconfig_version='0.0.0')
 	conf.check_cfg(package='jack', args='--libs', uselib_store="JACK")
+	conf.check_cfg(package='sox', args='--libs', uselib_store="SOX")
 
 	conf.check_tool('compiler_cxx')
 	conf.write_config_header('config.h')
 
 def build(bld):
-	cxxflags = ['-Wall', '-O2', '-g', '-I', 'default/']
+	cxxflags = ['-Wall', '-g', '-I', 'default/']
 	uselib_local = []
 
 	bld(features		= ['cxx', 'cstaticlib'],
@@ -49,8 +50,18 @@ def build(bld):
 			target			= 'jackinput',
 			cxxflags		= cxxflags,
 		)
-		uselib_local += ['jackinput']
-		uselib += ['JACK']
+		uselib_local 		+= ['jackinput']
+		uselib 				+= ['JACK']
+
+	if bld.env.HAVE_SOX:
+		bld(features		= ['cxx', 'cstaticlib'],
+			source			= 'src/fileinput.cpp',
+			target			= 'fileinput',
+			cxxflags		= cxxflags,
+		)
+		uselib_local 		+= ['fileinput']
+		uselib				+= ['SOX']
+
 
 	# and the executables
 	bld(features		= ['cxx', 'cprogram'],
@@ -61,6 +72,7 @@ def build(bld):
 		uselib_local	= uselib_local,
 		install_path	= '../',
 	)
+
 	if bld.env.HAVE_JACK:
 		bld(features		= ['cxx', 'cprogram'],
 			source			= 'src/controller.cpp',

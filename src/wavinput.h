@@ -34,7 +34,7 @@ class WavInput : public Input {
 
     protected:
         int process_headers(const char * infile, all_cfg_t *);
-        bool check_sample (const char * sample, const char * b);
+        bool check_sample(const char * sample, const char * b);
     private:
         FILE *_fh;
 };

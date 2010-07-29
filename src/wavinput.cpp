@@ -66,8 +66,13 @@ int WavInput::process_headers(const char * infile, all_cfg_t *cfg) {
 		exit(1);
     }
     fread(&SAMPLE_RATE, 2, 1, _fh); // Single two-byte sample
+    /*
     cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
     cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
+    */
+
+    //LOG_INFO("WAVE: %.6f, CHUNKSIZE: %.6f", cfg->first["WAVE"], cfg->first["CHUNKSIZE"]);
+
     fseek(_fh, 0x22, 0);
     uint16_t BitsPerSample;
     fread(&BitsPerSample, 1, 2, _fh);

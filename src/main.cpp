@@ -24,6 +24,9 @@
 #ifdef HAVE_JACK
 #include "jackinput.h"
 #endif // HAVE_JACK
+#ifdef HAVE_SOX
+#include "fileinput.h"
+#endif // HAVE_SOX
 
 void its_over(const char* noop, double place) {
     printf("FOUND, processed %.6f sec\n", place);
@@ -47,9 +50,12 @@ int main (int argc, char *argv[]) {
     Input *input = NULL;
 
     if (argc == 3 or argc == 4) { // WAV
+#ifdef HAVE_SOX
+        input = new FileInput(argv[argc-1], &this_cfg);
+#else
         input = new WavInput(argv[argc-1], &this_cfg);
-		//input -> test = 6;
-        LOG_DEBUG("Wav input, input file: %s, created instance", argv[argc-1]);
+#endif
+        LOG_DEBUG("Wav/Sox input, input file: %s, created instance", argv[argc-1]);
     }
 	LOG_DEBUG("WavInput instance should've been created");
 

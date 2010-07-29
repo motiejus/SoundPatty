@@ -61,6 +61,11 @@ SoundPatty::SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg) {
 	cfg = all_cfg->first;
 	volume = all_cfg->second;
     gSCounter = gMCounter = 0;
+
+    _input->WAVE = _input->SAMPLE_RATE * cfg["minwavelen"];
+    _input->CHUNKSIZE = cfg["chunklen"] * _input->SAMPLE_RATE;
+
+    LOG_INFO("WAVE: %.6f, CHUNKSIZE: %.6f", _input->WAVE, _input->CHUNKSIZE);
 };
 
 
@@ -197,14 +202,14 @@ int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
             //
             V->head = gSCounter;
         } else { // We are not in the wave
-            if (V->proc && (V->min < 0.001 || gSCounter - V->head > cfg["WAVE"])) {
+            if (V->proc && (V->min < 0.001 || gSCounter - V->head > _input->WAVE)) {
 
                 //------------------------------------------------------------
                 // This wave is over
                 //
                 V->proc = false; // Stop processing for both cases: found and not
 
-                if (gSCounter - V->tail >= cfg["CHUNKSIZE"]) {
+                if (gSCounter - V->tail >= _input->CHUNKSIZE) {
                     // ------------------------------------------------------------
                     // The previous chunk is big enough to be noticed
                     //

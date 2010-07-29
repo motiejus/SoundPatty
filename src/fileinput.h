@@ -1,5 +1,5 @@
 /*
- *  input.h
+ *  fileinput.h
  *
  *  Copyright (c) 2010 Motiejus Jakštys
  *
@@ -17,20 +17,19 @@
  */
 
 
-#ifndef __INPUT_H_INCLUDED__
-#define __INPUT_H_INCLUDED__
+#ifndef __FILENPUT_H_INCLUDED__
+#define __FILENPUT_H_INCLUDED__
 
-#include "main.h"
+#include "input.h"
+#include <sox.h>
 
-class Input {
+class FileInput : public Input {
     public:
-        int SAMPLE_RATE, DATA_SIZE;
-        double WAVE, CHUNKSIZE;
-        virtual ~Input() {};
-        virtual int giveInput(buffer_t * buffer) {
-            perror("giveInput not implemented, exiting\n");
-			exit(1);
-        };
+        int giveInput(buffer_t *);
+        FileInput(const void *, all_cfg_t *);
+    private:
+        sox_format_t *s;
+        bool reading_over;
 };
 
-#endif //__INPUT_H_INCLUDED__
+#endif //__FILEINPUT_H_INCLUDED__
