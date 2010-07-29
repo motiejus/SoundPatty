@@ -26,6 +26,12 @@ class WavInput : public Input {
     public:
         int giveInput(buffer_t *);
         WavInput(const void *, all_cfg_t *);
+
+		/* If you remove this variable - you get segfault on fread() in
+		 * WavInput::giveInput
+		 */
+		int test;
+
     protected:
         int process_headers(const char * infile, all_cfg_t *);
         bool check_sample (const char * sample, const char * b);

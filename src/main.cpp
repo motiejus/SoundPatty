@@ -44,10 +44,11 @@ int main (int argc, char *argv[]) {
     LOG_DEBUG("Starting to read configs from %s", argv[1]);
     all_cfg_t this_cfg = SoundPatty::read_cfg(argv[1]); //usually config.cfg
     SoundPatty *pat;
-    Input *input = NULL;
+    Input *input;
 
     if (argc == 3 or argc == 4) { // WAV
         input = new WavInput(argv[argc-1], &this_cfg);
+		//input -> test = 6;
         LOG_DEBUG("Wav input, input file: %s, created instance", argv[argc-1]);
     }
 	LOG_DEBUG("WavInput instance should've been created");

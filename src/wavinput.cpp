@@ -22,8 +22,13 @@ int WavInput::giveInput(buffer_t *buf_prop) {
     if (feof(_fh)) {
         return 0;
     }
-	buf_prop->buf = (sample_t*) calloc(SAMPLE_RATE * BUFFERSIZE, sizeof(sample_t));
-    size_t read_size = fread(buf_prop->buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
+	int16_t buf [SAMPLE_RATE * BUFFERSIZE];
+    size_t read_size = fread((void*)buf, 2, SAMPLE_RATE * BUFFERSIZE, _fh);
+
+	buf_prop->buf = (sample_t*) calloc(read_size, sizeof(sample_t));
+	for (unsigned int i = 0; i < read_size; i++) {
+		buf_prop->buf[i] = (sample_t)buf[i];
+	}
     buf_prop->nframes = read_size;
     return 1;
 };
