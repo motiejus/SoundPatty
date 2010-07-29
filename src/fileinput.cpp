@@ -34,24 +34,11 @@ int FileInput::giveInput(buffer_t *buf_prop) {
                 read_size, bufferlength);
         reading_over = true;
     }
-    // This one's for sure
-    // Doh SOX_EOF is -1, but size_t is unsigned ...
-    //if (read_size == SOX_EOF) { reading_over = true; }
-
 	buf_prop->buf = (sample_t*) calloc(read_size, sizeof(sample_t));
-    sample_t mini = 1<<31, maxi = -1<<31;
 
 	for (unsigned i = 0; i < read_size; i++) {
 		buf_prop->buf[i] = (sample_t)buf[i];
-        /*
-        printf("%d -> ", buf[i]);
-        printf("%.6f\n", buf_prop->buf[i]);
-
-        mini = min(buf_prop->buf[i], mini);
-        maxi = max(buf_prop->buf[i], maxi);
-        */
 	}
-    //printf("(min,max): (%-7.0f,%-7.0f)\n", mini, maxi);
     buf_prop->nframes = read_size;
     return 1;
 };
