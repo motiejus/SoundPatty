@@ -23,7 +23,7 @@
 #define nframes_t jack_nframes_t
 #define sample_t jack_audio_sample_t
 #else
-#define nframes_t uint32_t
+#define nframes_t unsigned int
 #define sample_t float
 #endif
 

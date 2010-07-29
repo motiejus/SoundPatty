@@ -35,6 +35,7 @@
 #include <fstream>
 
 #include <pthread.h>
+#include <stdint.h>
 
 #include <sys/types.h>
 #include <unistd.h>
