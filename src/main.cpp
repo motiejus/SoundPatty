@@ -153,17 +153,19 @@ int main (int argc, char *argv[]) {
 
     LOG_DEBUG("Starting to read configs from %s", cfgfile);
     all_cfg_t this_cfg = SoundPatty::read_cfg(cfgfile);
-    SoundPatty *pat = NULL;
     Input *input = NULL;
 
     if (strcmp(idrv, "file") == 0) {
         input = new FileInput(isource, &this_cfg);
         LOG_INFO("Sox input, input file: %s, created instance", argv[argc-1]);
-    } else
+    } else {
 #ifdef HAVE_JACK
         input = new JackInput(isource, &this_cfg);
 #endif // HAVE_JACK
-    pat = new SoundPatty("nothing", input, &this_cfg);
+	}
+
+    SoundPatty *pat = new SoundPatty("nothing", input, &this_cfg);
+
     if (action_num == ACTION_DUMP) {
         pat->setAction(ACTION_DUMP);
         LOG_INFO("Action is DUMP");
