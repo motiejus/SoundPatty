@@ -25,6 +25,7 @@
 
 class FileInput : public Input {
     public:
+        ~FileInput();
         int giveInput(buffer_t *);
         FileInput(const void *, all_cfg_t *);
     private:

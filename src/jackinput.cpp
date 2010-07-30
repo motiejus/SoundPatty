@@ -73,7 +73,6 @@ jack_client_t *JackInput::get_client() {
 };
 
 JackInput::JackInput(const void * args, all_cfg_t *cfg) {
-
     // G++ SAYS THIS HAS NO EFFECT!
     //data_in;
     pthread_mutex_init(&data_mutex, NULL);
@@ -110,8 +109,6 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
 
 JackInput::~JackInput() {
     // Delete input port
-    string logger_name ("input.jack."); 
-    logger_name += string(dst_port_name) + ".destructor";
 
     LOG_DEBUG("Disconnecting ports");
     if (jack_port_unregister(get_client(), dst_port)) {

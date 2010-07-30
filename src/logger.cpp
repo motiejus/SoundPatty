@@ -1,8 +1,8 @@
 #include "logger.h"
-int LogLevel = -1;
+int LogLevel = 5;
 extern void log_mo (const int log_level, const char *file, const int line, const char *pretty_fn, const char *format, ...)
 {
-    if (log_level < LogLevel) return;
+    if (log_level > LogLevel) return;
 
     va_list arg;
     va_start (arg, format);

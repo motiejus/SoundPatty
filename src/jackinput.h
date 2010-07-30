@@ -1,5 +1,5 @@
 /*
- *  input.h
+ *  jackinput.h
  *
  *  Copyright (c) 2010 Motiejus Jakštys
  *

@@ -6,85 +6,52 @@ from subprocess import Popen, PIPE
 
 def set_options(opt):
 	opt.tool_options('compiler_cxx')
-	opt.add_option('--disable', action='store')
 
 def configure(conf):
-	print('→ configuring the project')
-
 	conf.check_cfg(atleast_pkgconfig_version='0.0.0')
 	conf.check_cfg(package='jack', args='--libs', uselib_store="JACK")
-	conf.check_cfg(package='sox', args='--libs', uselib_store="SOX")
-
+	conf.check_cfg(package='sox', args='--libs', uselib_store="SOX",
+			mandatory=True)
 	conf.check_tool('compiler_cxx')
 	conf.write_config_header('config.h')
 
 def build(bld):
 	cxxflags = ['-Wall', '-g', '-O2', '-I', 'default/']
-	uselib_local = []
+	sp_source = ['src/soundpatty.cpp', 'src/logger.cpp', 'src/fileinput.cpp']
+	sp_uselib = ['SOX']
+	if bld.env.HAVE_JACK:
+		sp_source += ['src/jackinput.cpp']
+		sp_uselib += ['JACK']
 
+	# Build SoundPatty static library with required modules (inputs, logger)
 	bld(features		= ['cxx', 'cstaticlib'],
-		source			= 'src/soundpatty.cpp',
+		source			= sp_source,
 		target			= 'soundpatty',
 		cxxflags		= cxxflags,
+		uselib			= sp_uselib,
 	)
-	uselib_local += ['soundpatty']
-
-	bld(features		= ['cxx', 'cstaticlib'],
-		source			= 'src/wavinput.cpp',
-		target			= 'wavinput',
-		cxxflags		= cxxflags,
-	)
-	uselib_local += ['wavinput']
-
-	bld(features		= ['cxx', 'cstaticlib'],
-		source			= 'src/logger.cpp',
-		target			= 'logger',
-		cxxflags		= cxxflags,
-	)
-	uselib_local += ['logger']
-
-	uselib = []
-	if bld.env.HAVE_JACK:
-		bld(features		= ['cxx', 'cstaticlib'],
-			source			= 'src/jackinput.cpp',
-			target			= 'jackinput',
-			cxxflags		= cxxflags,
-		)
-		uselib_local 		+= ['jackinput']
-		uselib 				+= ['JACK']
-
-	if bld.env.HAVE_SOX:
-		bld(features		= ['cxx', 'cstaticlib'],
-			source			= 'src/fileinput.cpp',
-			target			= 'fileinput',
-			cxxflags		= cxxflags,
-		)
-		uselib_local 		+= ['fileinput']
-		uselib				+= ['SOX']
-
-
-	# and the executables
+	# And the runnable executables
 	bld(features		= ['cxx', 'cprogram'],
 		source			= 'src/main.cpp',
 		target			= 'main',
-		uselib			= uselib,
 		cxxflags		= cxxflags,
-		uselib_local	= uselib_local,
+		uselib			= sp_uselib,
+		uselib_local	= 'soundpatty',
 		install_path	= '../',
 	)
-
+	# I hope this will not be nescesarry in the future
 	if bld.env.HAVE_JACK:
 		bld(features		= ['cxx', 'cprogram'],
 			source			= 'src/controller.cpp',
 			target			= 'controller',
-			uselib			= uselib,
 			cxxflags		= cxxflags,
-			uselib_local	= uselib_local,
+			uselib			= sp_uselib,
+			uselib_local	= 'soundpatty',
 			install_path	= '../',
 		)
 
 def test(sc):
-	Scripting.commands += 'build install proc_test'.split()
+	Scripting.commands += 'install proc_test'.split()
 
 def proc_test(sc):
 	download("sample.wav",
@@ -93,9 +60,10 @@ def proc_test(sc):
 			"http://github.com/downloads/Motiejus/SoundPatty/catch_me.wav")
 	from Utils import pprint
 	pprint ('CYAN', "Creating sample file...")
-	os.system("./main config.cfg sample.wav > samplefile.txt 2>/dev/null")
+	os.system("./main -qa dump -c config.cfg sample.wav > samplefile.txt")
 	pprint ('CYAN', "Launching checker...")
-	output = Popen("./main config.cfg samplefile.txt catch_me.wav".split(' '),
+	output = Popen(['./main', '-acapture', '-cconfig.cfg',
+					'-ssamplefile.txt', 'catch_me.wav'],
 			stdout=PIPE, stderr=open('/dev/null', 'w'))
 	if output.communicate()[0].find('FOUND') != -1:
 		print("Tests passed")

@@ -6,28 +6,30 @@ You can listen to live radio station and log how many your advertisements are pl
 You can scan your music library for multiple recordings
 You can match special operator messages when trying to initiate a VoIP call (for example, "phone is out of radio coverage")
 
-### Compiling ###
-./waf configure; ./waf build
+### Installing ###
+$ tar -xzvf soundpatty-x.y.tar.gz
+$ cd soundpatty-x.y.tar.gz
+$ ./waf configure; ./waf build
 Configures and builds the package
-./waf install
-Installs to current (source directory), so launch it bravely.
+$ ./waf install
+Installs to current working directory. main and controller are what you need.
 
-### USAGE ###
-Let's see an example:
+### Usage ###
+Let's launch an example test:
     ./waf configure test
 This downloads sample.wav and catch_me.wav. sample.wav is a sample we want to capture
-in a catch_me.wav stream. Listen to both wavs and it will be clearer :)
+in a catch_me.wav stream. If unclear, listen to both wavs :)
 
-SoundPatty now supports Wav (PCM 16-bit) and Jack inputs. You can try jack like this:
+SoundPatty now supports any format sox supports and Jack. You can try jack like this:
 Jack (single port):
 	$ mplayer -ao jack:name=mp 
 		(in another console)
-	$ ./main config.cfg samplefile.txt jack mp:out_0
-Third option - for automatic port capturing (when you want jack channel to be "hooked" automatically)
+	$ ./main -c config.cfg -s samplefile.txt -d jack mp:out_0
+Third option - for automatic port capturing (automatic jack channel capturing)
 	$ ./controller
 See controller.h for configuration and constants.
 Third option is suitable for VoIP. You need just to open the Jack port with callee (caller)
-    audio and SoundPatty will do everyting else for you :-)
+    audio and SoundPatty will recognize and alert for you :-)
 
 ### TODO ###
 Major:

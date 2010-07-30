@@ -20,7 +20,6 @@
 #include "logger.h"
 
 void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
-
     jack_port_t *port_a = jack_port_by_id(client, a);
     jack_port_t *port_b = jack_port_by_id(client, b);
 
@@ -32,7 +31,6 @@ void port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
         }
         // We have to disconnect this port
 		LOG_DEBUG("Attempting to disconnect %s from %s", jack_port_name(port_a), jack_port_name(port_b));
-
 	}
 
     // See if "dst" port does not begin with sp_client_
@@ -58,9 +56,8 @@ void its_over(const char *port_name, double place) {
 };
 
 int main () {
-
     LOG_INFO("Starting to read configs from %s", SP_CONF);
-    all_cfg_t this_cfg = SoundPatty::read_cfg(SP_CONF); //usually config.cfg
+    all_cfg_t this_cfg = SoundPatty::read_cfg(SP_CONF);
     Input *input;
     SoundPatty *pat;
 

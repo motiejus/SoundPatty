@@ -240,7 +240,6 @@ int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
 // int b - index (overall) of sample found
 //
 int SoundPatty::do_checking(const treshold_t tr) {
-
     //pair<vals_t::iterator, vals_t::iterator> pa = vals.equal_range(pair<int,double>(r,sec));
     // Manually searching for matching values because with that pairs equal_range doesnt work
     // Iterate through pa
@@ -328,7 +327,6 @@ vector<string> explode(const string &delimiter, const string &str) { // Found so
     arr.push_back(str.substr(k, i-k));
     return arr;
 };
-
 
 
 workitm::workitm(const int a, const unsigned long b) {

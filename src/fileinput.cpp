@@ -57,3 +57,9 @@ FileInput::FileInput(const void * args, all_cfg_t *cfg) {
         vol->max *= (1<<30);
     }
 };
+
+
+FileInput::~FileInput() {
+    LOG_INFO("Closing sox instance");
+    sox_close(s);
+}
