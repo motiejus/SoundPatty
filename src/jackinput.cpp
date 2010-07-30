@@ -67,7 +67,7 @@ jack_client_t *JackInput::get_client() {
     if (new_client) {
         LOG_INFO("NEW Jack client requested");
     } else {
-        LOG_DEBUG( "Jack client requested, returned old one");
+        LOG_DEBUG("Jack client requested, returned old one");
     }
     return mainclient;
 };
@@ -83,9 +83,7 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     char *src_port_name = (char*) args;
     src_port = jack_port_by_name(client, src_port_name);
 
-    SAMPLE_RATE = jack_get_sample_rate (client);
-    cfg->first["WAVE"] = (int)SAMPLE_RATE * cfg->first["minwavelen"];
-    cfg->first["CHUNKSIZE"] = cfg->first["chunklen"] * (int)SAMPLE_RATE;
+    SAMPLE_RATE = jack_get_sample_rate(client);
 
     char shortname[15];
     if (jack_port_name_size() <= 15) {
@@ -106,7 +104,7 @@ JackInput::JackInput(const void * args, all_cfg_t *cfg) {
     pthread_mutex_lock(&jackInputsMutex);
     jackInputs.insert( pair<string,JackInput*>(dst_port_name,this) );
     pthread_mutex_unlock(&jackInputsMutex);
-    LOG_DEBUG("jack port to jackInputs inserted, port ready to work");
+    LOG_INFO("jack port to jackInputs inserted, port ready to work");
 };
 
 
@@ -115,9 +113,7 @@ JackInput::~JackInput() {
     string logger_name ("input.jack."); 
     logger_name += string(dst_port_name) + ".destructor";
 
-    LOG_DEBUG( "JackInput destructor called");
-
-    LOG_DEBUG( "Disconnecting ports");
+    LOG_DEBUG("Disconnecting ports");
     if (jack_port_unregister(get_client(), dst_port)) {
         LOG_ERROR( "Failed to remove port %s", jack_port_name(src_port));
     }
@@ -126,7 +122,7 @@ JackInput::~JackInput() {
     jackInputs.erase(this->dst_port_name);
     pthread_mutex_unlock(&jackInputsMutex);
 
-    LOG_DEBUG( "Deleted JackInput from jackInputs, ports are closed, leaving destructor");
+    LOG_DEBUG("Deleted JackInput from jackInputs, ports are closed, leaving destructor");
 }
 
 int JackInput::giveInput(buffer_t *buffer) {
