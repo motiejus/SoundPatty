@@ -8,7 +8,7 @@ def set_options(opt):
 	opt.tool_options('compiler_cxx')
 
 def configure(conf):
-	conf.check_cfg(atleast_pkgconfig_version='0.0.0')
+	conf.check_cfg(atleast_pkgconfig_version='0.0.0', mandatory=True)
 	conf.check_cfg(package='jack', args='--libs', uselib_store="JACK")
 	conf.check_cfg(package='sox', args='--libs', uselib_store="SOX",
 			mandatory=True)
