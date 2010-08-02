@@ -42,7 +42,7 @@ class JackInput : public Input {
         //static JackInput *jack_inst;
         //static jack_client_t *_client;
 
-        static void monitor_ports(all_cfg_t *);
+        static void monitor_ports(const char*, all_cfg_t *);
 
         static jack_client_t *client;
         static list<jack_port_t*> p_queue;

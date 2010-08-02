@@ -136,7 +136,7 @@ int JackInput::giveInput(buffer_t *buffer) {
     return 1;
 }
 
-void JackInput::monitor_ports(all_cfg_t *cfg) {
+void JackInput::monitor_ports(const char*, all_cfg_t *cfg) {
     // Should be called in new thread. Waits for inputs
 
     pthread_mutex_init(&p_queue_mutex, NULL);

@@ -16,11 +16,39 @@
  *
  */
 
+#include <sys/inotify.h>
 #include "fileinput.h"
 
-void FileInput::monitor_ports(all_cfg_t *cfg) {
-    LOG_FATAL("Not implemented");
-    exit(1);
+
+/* size of the event structure, not counting name */
+#define EVENT_SIZE  (sizeof (struct inotify_event))
+
+/* reasonable guess as to size of 1024 events */
+#define BUF_LEN        (1024 * (EVENT_SIZE + 16))
+
+void FileInput::monitor_ports(const char *isource, all_cfg_t *cfg) {
+    int fd = inotify_init();
+    if (fd < 0)
+        LOG_FATAL("inotify_init failed");
+
+    inotify_add_watch(fd, isource, IN_CREATE);
+
+    char buf[BUF_LEN];
+    int len, i = 0;
+
+    len = read (fd, buf, BUF_LEN);
+    struct inotify_event *event;
+
+    event = (struct inotify_event *) &buf[i];
+
+    printf ("wd=%d mask=%u cookie=%u len=%u\n",
+            event->wd, event->mask,
+            event->cookie, event->len);
+
+    if (event->len)
+        printf ("name=%s\n", event->name);
+
+
 }
 int FileInput::giveInput(buffer_t *buf_prop) {
     if (reading_over) { return 0; }

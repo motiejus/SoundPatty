@@ -155,12 +155,12 @@ int main (int argc, char *argv[]) {
 
     if (strcmp(action, "capture-auto") == 0) {
         if (strcmp(idrv, "file") == 0) {
-            FileInput::monitor_ports(&this_cfg);
+            FileInput::monitor_ports(isource, &this_cfg);
             LOG_INFO("Starting FileInput monitor_ports");
         } else {
 #ifdef HAVE_JACK
             LOG_INFO("Starting FileInput monitor_ports");
-            JackInput::monitor_ports(&this_cfg);
+            JackInput::monitor_ports(isource, &this_cfg);
 #endif // HAVE_JACK
         }
 
