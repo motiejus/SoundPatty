@@ -28,6 +28,7 @@ class FileInput : public Input {
         ~FileInput();
         int giveInput(buffer_t *);
         FileInput(const void *, all_cfg_t *);
+        static void monitor_ports(all_cfg_t *);
     private:
         sox_format_t *s;
         bool reading_over;

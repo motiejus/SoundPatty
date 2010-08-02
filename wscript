@@ -17,7 +17,7 @@ def configure(conf):
 
 def build(bld):
 	cxxflags = ['-Wall', '-g', '-O2', '-I', 'default/']
-	sp_source = ['src/soundpatty.cpp', 'src/logger.cpp', 'src/fileinput.cpp']
+	sp_source = ['src/soundpatty.cpp', 'src/fileinput.cpp', 'src/logger.cpp', 'src/input.cpp']
 	sp_uselib = ['SOX']
 	if bld.env.HAVE_JACK:
 		sp_source += ['src/jackinput.cpp']
@@ -39,16 +39,6 @@ def build(bld):
 		uselib_local	= 'soundpatty',
 		install_path	= '../',
 	)
-	# I hope this will not be nescesarry in the future
-	if bld.env.HAVE_JACK:
-		bld(features		= ['cxx', 'cprogram'],
-			source			= 'src/controller.cpp',
-			target			= 'controller',
-			cxxflags		= cxxflags,
-			uselib			= sp_uselib,
-			uselib_local	= 'soundpatty',
-			install_path	= '../',
-		)
 
 def test(sc):
 	Scripting.commands += 'install proc_test'.split()

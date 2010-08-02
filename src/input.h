@@ -31,6 +31,13 @@ class Input {
             perror("giveInput not implemented, exiting\n");
 			exit(1);
         };
+        // Tell inputmonitor that new ports is created and give new input instance params
+        static void new_port_created(const char*, Input *cls, all_cfg_t *cfg);
+
+        // Kindly ask input plugin to monitor for new ports in background
+        //static void monitor_ports(all_cfg_t *);
+
+        static void its_over(const char*, double);
 };
 
 #endif //__INPUT_H_INCLUDED__

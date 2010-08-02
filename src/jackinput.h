@@ -29,7 +29,9 @@ class JackInput : public Input {
     public:
         ~JackInput();
         static int jack_proc(nframes_t nframes, void *arg);
-        static int number_of_clients;
+        static int number_of_clients; // Leave this for jackInput
+        static void port_connect(jack_port_id_t, jack_port_id_t, int, void *);
+
         jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);
         char *src_port_name;
@@ -37,9 +39,15 @@ class JackInput : public Input {
         JackInput(const void * args, all_cfg_t *cfg);
         pthread_mutex_t data_mutex;
         pthread_cond_t  condition_cond;
-        static JackInput *jack_inst;
-        static jack_client_t *_client;
+        //static JackInput *jack_inst;
+        //static jack_client_t *_client;
 
+        static void monitor_ports(all_cfg_t *);
+
+        static jack_client_t *client;
+        static list<jack_port_t*> p_queue;
+        static pthread_mutex_t p_queue_mutex;
+        static pthread_cond_t p_queue_cond;
     private:
         jack_port_t *dst_port, *src_port;
         string dst_port_name;

@@ -20,7 +20,6 @@
 #include "main.h"
 #include "soundpatty.h"
 #include "fileinput.h"
-
 #ifdef HAVE_JACK
 #include "jackinput.h"
 #endif // HAVE_JACK
@@ -35,17 +34,18 @@ void usage() {
         "main <options> [channel/file]name\n\n"
 
         "Options:\n"
-        "  -a  action (see below)\n"
-        "  -c  config file (mandatory)\n"
+        "  -a  action (always mandatory, see below)\n"
+        "  -c  config file (always mandatory)\n"
         "  -s  sample file (only if action is \"capture\")\n"
         "  -d  input driver (see command showdrv for possible drivers), default: file\n"
-        "  -v  verbosity level (-v, -vv, -vvv) (ignored)\n"
+        "  -v  verbosity level (-v, -vv, -vvv, -vvvv)\n"
         "  -q  quiet output. Only FATAL are shown (supersedes -v)\n\n"
 
         "Actions:\n"
-        "  dump     : creates a sample fingerprint\n"
-        "  capture  : tries to capture a sound pattern\n"
-        "  showdrv  : show possible input drivers\n\n"
+        "  dump           : creates a sample fingerprint\n"
+        "  capture        : tries to capture a sound pattern\n"
+        "  capture-auto   : same as capture, but gets input source automatically\n"
+        "  showdrv        : show possible input drivers\n\n"
 
         "[Channel/file]name:\n"
 #ifdef HAVE_JACK
@@ -58,8 +58,8 @@ void usage() {
 }
 
 int main (int argc, char *argv[]) {
-    char *cfgfile = NULL, *isource = NULL,
-         *samplefile = NULL, *idrv = NULL, *action = NULL;
+    char *cfgfile = NULL, *isource = NULL, *samplefile = NULL,
+         *idrv = NULL, *action = NULL;
 
     int action_num = -1, quiet = 0;
     LogLevel = 3;
@@ -69,7 +69,7 @@ int main (int argc, char *argv[]) {
     }
 
     int c;
-    while ((c = getopt(argc, argv, "a:c:s:d::v::q")) != -1)
+    while ((c = getopt(argc, argv, "a:c:s:d:v::q")) != -1)
         switch (c)
         {
             case 'a':
@@ -88,7 +88,7 @@ int main (int argc, char *argv[]) {
                 quiet = 1;
                 break;
             case 'v':
-                LogLevel += 1;
+                LogLevel = 3;
                 if (optarg != NULL) {
                     LogLevel += strlen(optarg);
                 }
@@ -103,18 +103,6 @@ int main (int argc, char *argv[]) {
         perror("Action not specified\n\n");
         usage();
     }
-    if (cfgfile == NULL) {
-        perror("Config file not specified\n\n");
-        usage();
-    }
-    if (idrv == NULL) {
-        idrv = (char*) malloc(5 * sizeof(char));
-        strcpy(idrv, "file");
-    }
-    if (isource == NULL) {
-        perror("Input source not specified\n\n");
-        usage();
-    }
 
     if (strcmp(action, "showdrv") == 0) {
         string drivers("file");
@@ -123,7 +111,7 @@ int main (int argc, char *argv[]) {
 #endif
         printf("Possible drivers: %s\n", drivers.c_str());
         exit(0);
-    } else if (strcmp(action, "capture") == 0) {
+    } else if (strcmp(action, "capture") == 0 or strcmp(action, "capture-auto") == 0) {
         action_num = ACTION_CATCH;
         if (samplefile == NULL) {
             perror("Action is catch, but samplefile not specified.");
@@ -132,20 +120,30 @@ int main (int argc, char *argv[]) {
     } else if (strcmp(action, "dump") == 0) {
         action_num = ACTION_DUMP;
     } else {
-        char msg[100];
-        sprintf(msg, "Invalid action: %s\n\n", action);
-        perror(msg);
+        cerr << "Invalid action: " << action << endl << endl;
         usage();
     }
 
-    // Force LogLevel, unless quiet is set
-    LogLevel = quiet? 0 : 5;
 
-    LOG_DEBUG("action: %s", action);
-    LOG_DEBUG("cfgfile: %s", cfgfile);
-    LOG_DEBUG("samplefile: %s", samplefile);
-    LOG_DEBUG("idrv: %s", idrv);
-    LOG_DEBUG("isource: %s", isource);
+    if (cfgfile == NULL) {
+        perror("Config file not specified\n\n");
+        usage();
+    }
+    if (idrv == NULL) {
+        LOG_DEBUG("idrv null, making default: file");
+        idrv = (char*) malloc(5 * sizeof(char));
+        strcpy(idrv, "file");
+    }
+    if (strcmp(action, "capture-auto") != 0 and isource == NULL) {
+        perror("Input source not specified\n\n");
+        usage();
+    }
+
+    LOG_TRACE("action: %s", action);
+    LOG_TRACE("cfgfile: %s", cfgfile);
+    LOG_TRACE("samplefile: %s", samplefile);
+    LOG_TRACE("idrv: %s", idrv);
+    LOG_TRACE("isource: %s", isource);
 
     // ------------------------------------------------------------
     // End of parameter capturing, creating input instance
@@ -155,28 +153,41 @@ int main (int argc, char *argv[]) {
     all_cfg_t this_cfg = SoundPatty::read_cfg(cfgfile);
     Input *input = NULL;
 
-    if (strcmp(idrv, "file") == 0) {
-        input = new FileInput(isource, &this_cfg);
-        LOG_INFO("Sox input, input file: %s, created instance", argv[argc-1]);
-    } else {
+    if (strcmp(action, "capture-auto") == 0) {
+        if (strcmp(idrv, "file") == 0) {
+            FileInput::monitor_ports(&this_cfg);
+            LOG_INFO("Starting FileInput monitor_ports");
+        } else {
 #ifdef HAVE_JACK
-        input = new JackInput(isource, &this_cfg);
+            LOG_INFO("Starting FileInput monitor_ports");
+            JackInput::monitor_ports(&this_cfg);
 #endif // HAVE_JACK
-	}
+        }
 
-    SoundPatty *pat = new SoundPatty("nothing", input, &this_cfg);
+    } else {
+        if (strcmp(idrv, "file") == 0) {
+            input = new FileInput(isource, &this_cfg);
+            LOG_INFO("Sox input, input file: %s, created instance", argv[argc-1]);
+        } else {
+#ifdef HAVE_JACK
+            input = new JackInput(isource, &this_cfg);
+#endif // HAVE_JACK
+        }
+        LOG_DEBUG("Creating SoundPatty instance");
+        SoundPatty *pat = new SoundPatty("nothing", input, &this_cfg);
 
-    if (action_num == ACTION_DUMP) {
-        pat->setAction(ACTION_DUMP);
-        LOG_INFO("Action is DUMP");
-    } else if (action_num == ACTION_CATCH) {
-        LOG_INFO("Action is CATCH, sample file: %s", samplefile);
-        pat->setAction(ACTION_CATCH, samplefile, its_over);
+        if (action_num == ACTION_DUMP) {
+            pat->setAction(ACTION_DUMP);
+            LOG_INFO("Action is DUMP");
+        } else if (action_num == ACTION_CATCH) {
+            LOG_INFO("Action is CATCH, sample file: %s", samplefile);
+            pat->setAction(ACTION_CATCH, samplefile, its_over);
+        }
+
+        LOG_INFO("Starting main SoundPatty loop");
+        SoundPatty::go_thread(pat);
+        LOG_INFO("SoundPatty main loop completed");
     }
-
-    LOG_INFO("Starting main SoundPatty loop");
-    SoundPatty::go_thread(pat);
-    LOG_INFO("SoundPatty main loop completed");
 
     exit(0);
 }

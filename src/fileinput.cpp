@@ -18,6 +18,10 @@
 
 #include "fileinput.h"
 
+void FileInput::monitor_ports(all_cfg_t *cfg) {
+    LOG_FATAL("Not implemented");
+    exit(1);
+}
 int FileInput::giveInput(buffer_t *buf_prop) {
     if (reading_over) { return 0; }
 
