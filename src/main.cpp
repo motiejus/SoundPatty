@@ -119,6 +119,7 @@ int main (int argc, char *argv[]) {
         usage();
     }
 
+    LogLevel = quiet? 1 : LogLevel;
 
     if (action == ACTION_SHOWDRV) {
             string drivers("file");
@@ -168,8 +169,8 @@ int main (int argc, char *argv[]) {
 
     // Will give this parameter list to SoundPatty constructor
     // independent of capture or dump (it will understand it itself)
-    sp_params_dump_t    *sp_params_dump = NULL;
-    sp_params_capture_t *sp_params_capture = NULL;
+    sp_params_dump_t    sp_params_dump;
+    sp_params_capture_t sp_params_capture;
     void *sp_params = NULL;
 
     all_cfg_t this_cfg_var = SoundPatty::read_cfg(cfgfile);
@@ -177,11 +178,11 @@ int main (int argc, char *argv[]) {
 
     if (action == ACTION_CAPTURE) {
         LOG_DEBUG("Reading captured values from %s", samplefile);
-        sp_params_capture->vals = SoundPatty::read_captured_values(samplefile);
-        sp_params_capture->fn = its_over;
-        sp_params = (void*)sp_params_capture;
+        sp_params_capture.vals = SoundPatty::read_captured_values(samplefile);
+        sp_params_capture.fn = its_over;
+        sp_params = (void*)&sp_params_capture;
     } else {
-        sp_params = (void*)sp_params_dump;
+        sp_params = (void*)&sp_params_dump;
     }
 
     if (channel_hook_way == MANUAL) {
