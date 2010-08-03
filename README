@@ -35,6 +35,7 @@ Third option is suitable for VoIP. You need just to open the Jack port with call
 Major:
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
 * Make Input classes codec-independent (probably using libsox)
+* Force sample creation and detection with same input driver
 
 Somewhen:
 * Normal, configurable input arguments for main and controller.

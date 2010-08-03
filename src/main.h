@@ -46,12 +46,6 @@ using namespace std;
 #include "types.h"
 #include "logger.h"
 
-#define SRC_WAV 0
-#define SRC_JACK_ONE 1
-#define SRC_JACK_AUTO 2
-#define ACTION_DUMP 0
-#define ACTION_CATCH 1
-
 #define BUFFERSIZE 1
 
 #endif // __SP_MAIN_H_INCLUDED__

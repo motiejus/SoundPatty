@@ -26,11 +26,15 @@
 class Input;
 class SoundPatty {
     public:
+        SoundPatty(action_t, Input*, all_cfg_t*, void *);
+        /*
         SoundPatty(const char*, Input *, all_cfg_t *);
+        SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg, vals_t vals,
+                       void(*fn)(const char*, const double));
+                       */
         static all_cfg_t read_cfg(const char*);
-        void read_captured_values(const char *);
-        void setAction(int action);
-        void setAction(int action, char * cfg, void (*fn)(const char*, const double));
+        static vals_t read_captured_values(const char *);
+        void setAction(int action, void (*fn)(const char*, const double));
         static void dump_out(const treshold_t args);
         static void *go_thread(void *inst); // Same as SoundPatty::go(), but for pthreads
         int do_checking(const treshold_t args);
@@ -42,11 +46,11 @@ class SoundPatty {
         int search_patterns (sample_t cur, treshold_t *);
         vector<sVolumes> volume;
         char *name; // Each instance has a name
-    private:
-        int _action;
         void (*_callback)(const char*, const double);
-        list<workitm> work;
+    private:
+        action_t _action;
         vals_t vals;
+        list<workitm> work;
         Input * _input;
         char *input_params;
 };

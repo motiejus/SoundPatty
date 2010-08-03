@@ -35,37 +35,30 @@ void *SoundPatty::go_thread(void *args) {
     delete inst;
     LOG_DEBUG("SoundPatty and Input instances deleted. Exiting thread");
     return NULL;
-}
+};
 
 void SoundPatty::dump_out(const treshold_t args) { // STATIC
     printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
 };
 
 
-void SoundPatty::setAction(int action, char * cfg, void (*fn)(const char*, const double)) {
+SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *params_uni) {
     _action = action;
-    read_captured_values(cfg);
-    _callback = fn; // What to do when we catch a pattern
-};
-
-
-void SoundPatty::setAction(int action) {
-    _action = action;
-};
-
-
-SoundPatty::SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg) { 
-    this->name = (char*)malloc(strlen(name)+1);
-    strcpy(this->name, name);
     _input = input;
+    if (action == ACTION_DUMP) {
+        //sp_params_dump_t *params = (sp_params_dump_t*)params_uni;
+    } else if (action == ACTION_CAPTURE) {
+        sp_params_capture_t *params = (sp_params_capture_t*)params_uni;
+        vals = params->vals;
+        _callback = params->fn;
+    }
+
 	cfg = all_cfg->first;
 	volume = all_cfg->second;
     gSCounter = gMCounter = 0;
 
     _input->WAVE = _input->SAMPLE_RATE * cfg["minwavelen"];
     _input->CHUNKSIZE = cfg["chunklen"] * _input->SAMPLE_RATE;
-
-    LOG_INFO("WAVE: %.6f, CHUNKSIZE: %.6f", _input->WAVE, _input->CHUNKSIZE);
 };
 
 
@@ -146,7 +139,7 @@ int SoundPatty::go() {
                 if (_action == ACTION_DUMP) {
                     SoundPatty::dump_out(ret);
                 }
-                if (_action == ACTION_CATCH) {
+                if (_action == ACTION_CAPTURE) {
                     if (SoundPatty::do_checking(ret)) {
                         // Caught pattern
                         return 1;
@@ -163,7 +156,9 @@ int SoundPatty::go() {
 };
 
 
-void SoundPatty::read_captured_values(const char * filename) {
+vals_t SoundPatty::read_captured_values(const char * filename) {
+    vals_t vals;
+
     ifstream file;
     file.open(filename);
     string line;
@@ -183,6 +178,7 @@ void SoundPatty::read_captured_values(const char * filename) {
         tmp.second.c = i; // Counter in the stream
         vals.insert(tmp);
     }
+    return vals;
 };
 
 
@@ -291,7 +287,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
                 used_a.insert(a);
             } else { // This means the treshold is reached
                 // This kind of function is called when the pattern is recognized
-                _callback (name, tr.place + tr.sec);
+                _callback (_input->name, tr.place + tr.sec);
                 return 1;
             }
             w++;

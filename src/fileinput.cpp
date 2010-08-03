@@ -26,7 +26,8 @@
 /* reasonable guess as to size of 1024 events */
 #define BUF_LEN        (1024 * (EVENT_SIZE + 16))
 
-void FileInput::monitor_ports(const char *isource, all_cfg_t *cfg) {
+void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *cfg, void *sp_params) {
+
     int fd = inotify_init();
     if (fd < 0)
         LOG_FATAL("inotify_init failed");
@@ -76,7 +77,7 @@ int FileInput::giveInput(buffer_t *buf_prop) {
 };
 
 
-FileInput::FileInput(const void * args, all_cfg_t *cfg) {
+FileInput::FileInput(const char * args, all_cfg_t *cfg) {
     // Filename given
     reading_over = false;
     s = sox_open_read((char*)args, NULL, NULL, NULL);

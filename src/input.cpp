@@ -29,14 +29,16 @@ void Input::its_over(const char *port_name, double place) {
     //system(command);
 };
 
-void Input::new_port_created(const char *port_name, Input *input, all_cfg_t *cfg) {
+void Input::new_port_created(
+        action_t action, const char *port_name,
+        Input *input, all_cfg_t *cfg, void *sp_params) {
+
     // Hum, must create new SomeInput instance here
     // So we have new port created here. In case of jack -
     // it's safe to call jack server here, since it's not a caller thread :-)
 
-    SoundPatty *pat = new SoundPatty(port_name, input, cfg);
-    LOG_DEBUG("Created SoundPatty instance, setting action callback");
-    pat->setAction(ACTION_CATCH, (char*)"fixme", Input::its_over);
+    LOG_DEBUG("Creating SoundPatty instance for new port");
+    SoundPatty *pat = new SoundPatty(action, input, cfg, sp_params);
 
     pthread_t tmp; pthread_attr_t attr; pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);

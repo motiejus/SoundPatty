@@ -34,15 +34,12 @@ class JackInput : public Input {
 
         jack_client_t* get_client();
         int giveInput(buffer_t *buf_prop);
-        char *src_port_name;
 
-        JackInput(const void * args, all_cfg_t *cfg);
+        JackInput(const char*, all_cfg_t *cfg);
         pthread_mutex_t data_mutex;
         pthread_cond_t  condition_cond;
-        //static JackInput *jack_inst;
-        //static jack_client_t *_client;
 
-        static void monitor_ports(const char*, all_cfg_t *);
+        static void monitor_ports(action_t, const char*, all_cfg_t *, void *);
 
         static jack_client_t *client;
         static list<jack_port_t*> p_queue;

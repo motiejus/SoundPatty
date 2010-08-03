@@ -50,6 +50,7 @@ class Range {
         double tmin, tm, tmax;
 };
 
+
 struct sVolumes {
     unsigned long head, tail;
 	sample_t min, max;
@@ -78,5 +79,16 @@ typedef struct {
     sample_t * buf;
     nframes_t nframes;
 } buffer_t;
+
+
+struct sp_params_dump_t {
+};
+
+struct sp_params_capture_t {
+    vals_t vals;
+    void (*fn)(const char*, const double);
+};
+
+enum action_t { ACTION_UNDEF = -1, ACTION_CAPTURE = 0, ACTION_DUMP = 1, ACTION_SHOWDRV = 2 };
 
 #endif // __TYPES_H_INCLUDED__

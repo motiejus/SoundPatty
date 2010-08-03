@@ -74,14 +74,16 @@ jack_client_t *JackInput::get_client() {
     return mainclient;
 };
 
-JackInput::JackInput(const void * args, all_cfg_t *cfg) {
+JackInput::JackInput(const char *src_port_name, all_cfg_t *cfg) {
     // G++ SAYS THIS HAS NO EFFECT!
     //data_in;
+    name = (char*) malloc(strlen(src_port_name)+1);
+    memcpy(name,src_port_name,strlen(src_port_name)+1);
+
     pthread_mutex_init(&data_mutex, NULL);
 	pthread_cond_init(&condition_cond, NULL);
     jack_client_t *client = get_client();
 
-    char *src_port_name = (char*) args;
     src_port = jack_port_by_name(client, src_port_name);
 
     SAMPLE_RATE = jack_get_sample_rate(client);
@@ -136,7 +138,7 @@ int JackInput::giveInput(buffer_t *buffer) {
     return 1;
 }
 
-void JackInput::monitor_ports(const char*, all_cfg_t *cfg) {
+void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *cfg, void *sp_params) {
     // Should be called in new thread. Waits for inputs
 
     pthread_mutex_init(&p_queue_mutex, NULL);
@@ -168,9 +170,9 @@ void JackInput::monitor_ports(const char*, all_cfg_t *cfg) {
             const char *port_name = jack_port_name(port);
             LOG_DEBUG("Got new jack port, name: %s", port_name);
 
-            JackInput *input = new JackInput((void*)port_name, cfg);
+            JackInput *input = new JackInput(port_name, cfg);
             LOG_DEBUG("Created new JackInput instance (port name: %s), calling new_port_created", port_name);
-            new_port_created( port_name, input, cfg );
+            new_port_created( action, port_name, input, cfg, sp_params );
             LOG_DEBUG("new_port_created callback over", port_name);
 
             pthread_mutex_lock(&p_queue_mutex);
