@@ -6,37 +6,30 @@ You can listen to live radio station and log how many your advertisements are pl
 You can scan your music library for multiple recordings
 You can match special operator messages when trying to initiate a VoIP call (for example, "phone is out of radio coverage")
 
-### Installing ###
-$ tar -xzvf soundpatty-x.y.tar.gz
-$ cd soundpatty-x.y.tar.gz
-$ ./waf configure; ./waf build
-Configures and builds the package
-$ ./waf install
-Installs to current working directory. main and controller are what you need.
-
 ### Usage ###
 Let's launch an example test:
     ./waf configure test
-This downloads sample.wav and catch_me.wav. sample.wav is a sample we want to capture
-in a catch_me.wav stream. If unclear, listen to both wavs :)
+This configures, builds, installs SoundPatty to current directory, downloads sample.wav and catch_me.wav.
+sample.wav is a sample we want to capture in a catch_me.wav stream. Listen to both wavs if unclear :-)
 
-SoundPatty now supports any format sox supports and Jack. You can try jack like this:
+SoundPatty supports any format sox supports and Jack. File inputs usage is self-descriptive in ./waf test.
+You can try jack like this:
 Jack (single port):
 	$ mplayer -ao jack:name=mp 
 		(in another console)
-	$ ./main -c config.cfg -s samplefile.txt -d jack mp:out_0
-Third option - for automatic port capturing (automatic jack channel capturing)
-	$ ./controller
-See controller.h for configuration and constants.
-Third option is suitable for VoIP. You need just to open the Jack port with callee (caller)
+	$ ./soundpatty -a capture -c config.cfg -s samplefile.txt -d jack mp:out_0
+For automatic automatic jack channel capturing:
+    $ ./soundpatty -a capture -c config.cfg -s samplefile.txt -d jack -m
+This option is suitable for VoIP. You need just to open the Jack port with callee (caller)
     audio and SoundPatty will recognize and alert for you :-)
+!!! NOTE !!!
+    you have to create sample files with the same driver you will capture, otherwise it (might) not work.
 
 ### TODO ###
 Major:
+* Create automatic file capturing (like for jack)
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
-* Make Input classes codec-independent (probably using libsox)
-* Force sample creation and detection with same input driver
+* Force sample creation and detection with same input driver (jack and file)
 
 Somewhen:
-* Normal, configurable input arguments for main and controller.
 * Make the main matching algorithm based on tree (somehow). This would improve efficiency in "capturing".

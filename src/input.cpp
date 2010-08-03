@@ -22,6 +22,7 @@
 void Input::its_over(const char *port_name, double place) {
 	char msg[50];
 	sprintf(msg,"FOUND for %s, processed %.6f sec", port_name, place);
+    printf(msg);
     LOG_INFO(msg);
     // Call the over.sh function
     char command[300];

@@ -1,6 +1,6 @@
 # vim:ts=4:sw=4:noet:ft=python:
 APPNAME='SoundPatty'
-VERSION='1.0alpha2'
+VERSION='1.0beta1'
 import os, Scripting
 from subprocess import Popen, PIPE
 

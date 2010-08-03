@@ -24,15 +24,24 @@
 
 class Input {
     public:
-        char *name;
-        int SAMPLE_RATE, DATA_SIZE;
-        double WAVE, CHUNKSIZE;
+        // ----------------------------------------------------------------------
+        // Input subclasses must have these methods defined:
+        // constructor (any type)
         virtual ~Input() {};
         virtual int giveInput(buffer_t * buffer) {
             perror("giveInput not implemented, exiting\n");
 			exit(1);
         };
-        // Tell inputmonitor that new ports is created and give new input instance params
+        
+
+        // ----------------------------------------------------------------------
+        // Subclasses must also fill these values (constant at runtime)
+        char *name; // Unique name for each input stream (eg. filename)
+        int SAMPLE_RATE, DATA_SIZE;
+        double WAVE, CHUNKSIZE;
+
+        // ----------------------------------------------------------------------
+        // If subclass has SubInput::monitor_ports, it calls this function
         static void new_port_created(action_t, const char*, Input*, all_cfg_t*, void*);
         static void its_over(const char*, double);
 };
