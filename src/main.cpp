@@ -27,10 +27,6 @@
 action_t action;
 enum channel_hook_way_t { AUTO, MANUAL } channel_hook_way = MANUAL;
 
-void its_over(const char* noop, double place) {
-    printf("FOUND, processed %.6f sec\n", place);
-    exit(0);
-};
 void usage() {
     perror (
         "soundpatty <options> [channel/file]name\n\n"
@@ -179,7 +175,7 @@ int main (int argc, char *argv[]) {
     if (action == ACTION_CAPTURE) {
         LOG_DEBUG("Reading captured values from %s", samplefile);
         sp_params_capture.vals = SoundPatty::read_captured_values(samplefile);
-        sp_params_capture.fn = its_over;
+        sp_params_capture.fn = Input::its_over;
         sp_params = (void*)&sp_params_capture;
     } else {
         sp_params = (void*)&sp_params_dump;
@@ -214,6 +210,5 @@ int main (int argc, char *argv[]) {
 #endif // HAVE_JACK
         }
     }
-
     exit(0);
 }

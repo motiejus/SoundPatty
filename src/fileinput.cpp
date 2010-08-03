@@ -59,9 +59,6 @@ int FileInput::giveInput(buffer_t *buf_prop) {
     sox_sample_t buf [bufferlength]; // Take BUFFERSIZE seconds
     size_t read_size = sox_read(s, buf, bufferlength);
 
-    /* TODO: if length of buffer is smaller then always,
-     * make reading_over = true here too
-     */
     if (read_size < bufferlength) {
         LOG_INFO("EOF reached. Read_size: %d, bufferlength: %d",
                 read_size, bufferlength);
@@ -77,10 +74,12 @@ int FileInput::giveInput(buffer_t *buf_prop) {
 };
 
 
-FileInput::FileInput(const char * args, all_cfg_t *cfg) {
-    // Filename given
+FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
+    name = (char*) malloc(strlen(isource)+1);
+    memcpy(name,isource,strlen(isource)+1);
+
     reading_over = false;
-    s = sox_open_read((char*)args, NULL, NULL, NULL);
+    s = sox_open_read(isource, NULL, NULL, NULL);
     LOG_DEBUG("Sox initialized. Sampling rate: %.6f, channels: %d, bitrate: %d, samples: %d",
             s->signal.rate, s->signal.channels, s->signal.precision, s->signal.length);
     SAMPLE_RATE = (int)s->signal.rate;

@@ -39,6 +39,7 @@ void *SoundPatty::go_thread(void *args) {
 
 void SoundPatty::dump_out(const treshold_t args) { // STATIC
     printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
+    fflush(stdout);
 };
 
 

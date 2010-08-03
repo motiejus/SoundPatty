@@ -22,7 +22,7 @@
 jack_client_t *JackInput::client;
 pthread_mutex_t JackInput::p_queue_mutex;
 pthread_cond_t JackInput::p_queue_cond;
-list<jack_port_t*> JackInput::p_queue;
+list<pair<jack_port_t*,bool> > JackInput::p_queue;
 
 int JackInput::number_of_clients = 0; // Counter of jack clients
 // Not protected by mutex, because accessed only in one thread
@@ -75,8 +75,6 @@ jack_client_t *JackInput::get_client() {
 };
 
 JackInput::JackInput(const char *src_port_name, all_cfg_t *cfg) {
-    // G++ SAYS THIS HAS NO EFFECT!
-    //data_in;
     name = (char*) malloc(strlen(src_port_name)+1);
     memcpy(name,src_port_name,strlen(src_port_name)+1);
 
@@ -114,6 +112,7 @@ JackInput::JackInput(const char *src_port_name, all_cfg_t *cfg) {
 JackInput::~JackInput() {
     // Delete input port
 
+    delete name;
     LOG_DEBUG("Disconnecting ports");
     if (jack_port_unregister(get_client(), dst_port)) {
         LOG_ERROR( "Failed to remove port %s", jack_port_name(src_port));
@@ -163,18 +162,21 @@ void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
     while (1) {
         pthread_cond_wait(&p_queue_cond, &p_queue_mutex);
         while (!p_queue.empty()) {
-            jack_port_t *port = p_queue.front();
+            pair<jack_port_t*, bool> port_info = p_queue.front();
+            jack_port_t *port = port_info.first;
             p_queue.pop_front();
-            pthread_mutex_unlock(&p_queue_mutex);
-
             const char *port_name = jack_port_name(port);
-            LOG_DEBUG("Got new jack port, name: %s", port_name);
-
-            JackInput *input = new JackInput(port_name, cfg);
-            LOG_DEBUG("Created new JackInput instance (port name: %s), calling new_port_created", port_name);
-            new_port_created( action, port_name, input, cfg, sp_params );
-            LOG_DEBUG("new_port_created callback over", port_name);
-
+            // New port
+            pthread_mutex_unlock(&p_queue_mutex);
+            if (port_info.second) {
+                LOG_DEBUG("Got new jack port, name: %s", port_name);
+                JackInput *input = new JackInput(port_name, cfg);
+                LOG_DEBUG("Created new JackInput instance (port name: %s), calling new_port_created", port_name);
+                new_port_created( action, port_name, input, cfg, sp_params );
+            } else { // Destroy this JackInput instance
+                LOG_INFO("Calling JackInput destructor for port %s", port_name);
+                //jackInputs[string(port_name)]->~JackInput();
+            }
             pthread_mutex_lock(&p_queue_mutex);
         }
 	}
@@ -192,6 +194,11 @@ void JackInput::port_connect(jack_port_id_t a, jack_port_id_t b, int connect, vo
         }
         // We have to disconnect this port
 		LOG_DEBUG("Attempting to disconnect %s from %s", jack_port_name(port_a), jack_port_name(port_b));
+        LOG_INFO("Adding to stack <%s, false>", jack_port_name(port_b));
+        pthread_mutex_lock(&JackInput::p_queue_mutex);
+        JackInput::p_queue.push_back(pair<jack_port_t*,bool>(port_b, false));
+        pthread_mutex_unlock(&JackInput::p_queue_mutex);
+        pthread_cond_signal(&JackInput::p_queue_cond);
 	}
 
     // See if "dst" port does not begin with sp_client_
@@ -199,9 +206,9 @@ void JackInput::port_connect(jack_port_id_t a, jack_port_id_t b, int connect, vo
         return;
     }
     if (!(JackPortIsOutput & jack_port_flags(port_a))) return;
-    LOG_INFO("Adding to stack %s", jack_port_name(port_a));
+    LOG_INFO("Adding to stack <%s, true>", jack_port_name(port_a));
     pthread_mutex_lock(&JackInput::p_queue_mutex);
-    JackInput::p_queue.push_back(port_a);
+    JackInput::p_queue.push_back(pair<jack_port_t*,bool>(port_a, true));
     pthread_mutex_unlock(&JackInput::p_queue_mutex);
     pthread_cond_signal(&JackInput::p_queue_cond);
 };

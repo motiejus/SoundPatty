@@ -42,9 +42,12 @@ class JackInput : public Input {
         static void monitor_ports(action_t, const char*, all_cfg_t *, void *);
 
         static jack_client_t *client;
-        static list<jack_port_t*> p_queue;
+
+        // bool is true if port connects, false - disconects
+        static list<pair<jack_port_t*, bool> > p_queue;
         static pthread_mutex_t p_queue_mutex;
         static pthread_cond_t p_queue_cond;
+
     private:
         jack_port_t *dst_port, *src_port;
         string dst_port_name;

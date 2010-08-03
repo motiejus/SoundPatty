@@ -21,12 +21,12 @@
 
 void Input::its_over(const char *port_name, double place) {
 	char msg[50];
-	sprintf(msg,"FOUND, processed %.6f sec", place);
+	sprintf(msg,"FOUND for %s, processed %.6f sec", port_name, place);
     LOG_INFO(msg);
     // Call the over.sh function
-    //char command[300];
-    //sprintf(command, "%s \"%s\" \"%.6f\"", SP_OVER, port_name, place);
-    //system(command);
+    char command[300];
+    sprintf(command, "./over.sh \"%s\" \"%.6f\"", port_name, place);
+    system(command);
 };
 
 void Input::new_port_created(

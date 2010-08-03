@@ -43,12 +43,17 @@ def proc_test(sc):
 			"http://github.com/downloads/Motiejus/SoundPatty/catch_me.wav")
 	from Utils import pprint
 	pprint ('CYAN', "Creating sample file...")
-	os.system("./soundpatty -qa dump -c config.cfg sample.wav > samplefile.txt")
+	cmd = "./soundpatty -qa dump -c config.cfg sample.wav > samplefile.txt"
+	print (cmd+"\n")
+	os.system(cmd)
 	pprint ('CYAN', "Launching checker...")
-	output = Popen(['./soundpatty', '-acapture', '-cconfig.cfg',
-					'-ssamplefile.txt', 'catch_me.wav'],
-			stdout=PIPE, stderr=open('/dev/null', 'w'))
-	if output.communicate()[0].find('FOUND') != -1:
+	cmd = ['./soundpatty', '-acapture', '-cconfig.cfg',
+					'-ssamplefile.txt', 'catch_me.wav']
+	print (" ".join(cmd))
+	output = Popen(cmd,
+			stdout=PIPE, stderr=open('/dev/null', 'w')).communicate()[0]
+	print (output)
+	if output.find('FOUND') != -1:
 		print("Tests passed")
 	else:
 		from Logs import error
