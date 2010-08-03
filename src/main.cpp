@@ -33,7 +33,7 @@ void its_over(const char* noop, double place) {
 };
 void usage() {
     perror (
-        "main <options> [channel/file]name\n\n"
+        "soundpatty <options> [channel/file]name\n\n"
 
         "Options:\n"
         "  -a  action (always mandatory, see below)\n"

@@ -1,6 +1,6 @@
 # vim:ts=4:sw=4:noet:ft=python:
 APPNAME='SoundPatty'
-VERSION='1.0alpha1'
+VERSION='1.0alpha2'
 import os, Scripting
 from subprocess import Popen, PIPE
 
@@ -17,26 +17,19 @@ def configure(conf):
 
 def build(bld):
 	cxxflags = ['-Wall', '-g', '-O2', '-I', 'default/']
-	sp_source = ['src/soundpatty.cpp', 'src/fileinput.cpp', 'src/logger.cpp', 'src/input.cpp']
+	sp_source = ['src/main.cpp', 'src/soundpatty.cpp', 'src/fileinput.cpp',\
+				 'src/logger.cpp', 'src/input.cpp']
 	sp_uselib = ['SOX']
 	if bld.env.HAVE_JACK:
 		sp_source += ['src/jackinput.cpp']
 		sp_uselib += ['JACK']
 
-	# Build SoundPatty static library with required modules (inputs, logger)
-	bld(features		= ['cxx', 'cstaticlib'],
+	# And the runnable executables
+	bld(features		= ['cxx', 'cprogram'],
 		source			= sp_source,
 		target			= 'soundpatty',
 		cxxflags		= cxxflags,
 		uselib			= sp_uselib,
-	)
-	# And the runnable executables
-	bld(features		= ['cxx', 'cprogram'],
-		source			= 'src/main.cpp',
-		target			= 'main',
-		cxxflags		= cxxflags,
-		uselib			= sp_uselib,
-		uselib_local	= 'soundpatty',
 		install_path	= '../',
 	)
 
@@ -50,9 +43,9 @@ def proc_test(sc):
 			"http://github.com/downloads/Motiejus/SoundPatty/catch_me.wav")
 	from Utils import pprint
 	pprint ('CYAN', "Creating sample file...")
-	os.system("./main -qa dump -c config.cfg sample.wav > samplefile.txt")
+	os.system("./soundpatty -qa dump -c config.cfg sample.wav > samplefile.txt")
 	pprint ('CYAN', "Launching checker...")
-	output = Popen(['./main', '-acapture', '-cconfig.cfg',
+	output = Popen(['./soundpatty', '-acapture', '-cconfig.cfg',
 					'-ssamplefile.txt', 'catch_me.wav'],
 			stdout=PIPE, stderr=open('/dev/null', 'w'))
 	if output.communicate()[0].find('FOUND') != -1:
