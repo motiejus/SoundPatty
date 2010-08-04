@@ -69,7 +69,7 @@ int main (int argc, char *argv[]) {
 
     int c;
     action = ACTION_UNDEF;
-    while ((c = getopt(argc, argv, "ma:c:s:d:v::q")) != -1)
+    while ((c = getopt(argc, argv, "ma:c:s:d:vq")) != -1)
         switch (c)
         {
             case 'a':
@@ -100,10 +100,7 @@ int main (int argc, char *argv[]) {
                 quiet = 1;
                 break;
             case 'v':
-                LogLevel = 3;
-                if (optarg != NULL) {
-                    LogLevel += strlen(optarg);
-                }
+                LogLevel += 1;
                 break;
         }
     if (optind != argc) {
