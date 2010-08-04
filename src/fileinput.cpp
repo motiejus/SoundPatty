@@ -39,7 +39,7 @@ void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
 
     while (1) {
         char buf[BUF_LEN];
-        volatile int errno;
+        volatile int errno = 0;
         int len, i = 0;
 
         len = read (fd, buf, BUF_LEN);
@@ -51,11 +51,20 @@ void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
         while (i < len) {
             struct inotify_event *event;
             event = (struct inotify_event *) &buf[i];
-            printf ("wd=%d mask=%u cookie=%u len=%u\n",
+
+            LOG_DEBUG("Got inotify event: wd=%d mask=%u cookie=%u len=%u",
                     event->wd, event->mask,
                     event->cookie, event->len);
-            if (event->len)
-                printf ("name=%s\n", event->name);
+            if (event->len) {
+                char *filename = (char*)malloc(strlen(isource)+strlen(event->name)+1);
+                sprintf(filename, "%s%s", isource, event->name);
+                LOG_INFO ("Creating new FileInput for %s", filename);
+                FileInput *input = new FileInput(filename, cfg);
+                LOG_DEBUG("Calling new_port_created");
+                new_port_created( action, filename, input, cfg, sp_params );
+                LOG_DEBUG("New port created callback is over");
+                delete filename;
+            }
             i += EVENT_SIZE + event->len;
         }
     }
