@@ -170,9 +170,11 @@ void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
             pthread_mutex_unlock(&p_queue_mutex);
             if (port_info.second) {
                 LOG_DEBUG("Got new jack port, name: %s", port_name);
-                JackInput *input = new JackInput(port_name, cfg);
+                all_cfg_t cfg_local(cfg->first, cfg->second); // Wow that's a nice hack :-)
+
+                JackInput *input = new JackInput(port_name, &cfg_local);
                 LOG_DEBUG("Created new JackInput instance (port name: %s), calling new_port_created", port_name);
-                new_port_created( action, port_name, input, cfg, sp_params );
+                new_port_created( action, port_name, input, &cfg_local, sp_params );
             } else { // Destroy this JackInput instance
                 LOG_INFO("Calling JackInput destructor for port %s", port_name);
                 //jackInputs[string(port_name)]->~JackInput();

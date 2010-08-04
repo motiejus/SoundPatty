@@ -56,12 +56,14 @@ void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
                     event->wd, event->mask,
                     event->cookie, event->len);
             if (event->len) {
+                all_cfg_t cfg_local(cfg->first, cfg->second); // Wow that's a nice hack :-)
+
                 char *filename = (char*)malloc(strlen(isource)+strlen(event->name)+1);
                 sprintf(filename, "%s%s", isource, event->name);
                 LOG_INFO ("Creating new FileInput for %s", filename);
-                FileInput *input = new FileInput(filename, cfg);
+                FileInput *input = new FileInput(filename, &cfg_local);
                 LOG_DEBUG("Calling new_port_created");
-                new_port_created( action, filename, input, cfg, sp_params );
+                new_port_created( action, filename, input, &cfg_local, sp_params );
                 LOG_DEBUG("New port created callback is over");
                 delete filename;
             }
