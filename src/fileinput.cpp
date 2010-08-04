@@ -16,40 +16,52 @@
  *
  */
 
+#ifdef HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
-#include "fileinput.h"
-
-
 /* size of the event structure, not counting name */
 #define EVENT_SIZE  (sizeof (struct inotify_event))
 
 /* reasonable guess as to size of 1024 events */
 #define BUF_LEN        (1024 * (EVENT_SIZE + 16))
+#endif // HAVE_INOTIFY_INIT
+
+#include "fileinput.h"
 
 void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *cfg, void *sp_params) {
 
+#ifndef HAVE_INOTIFY_INIT
+    LOG_FATAL("Not implemented!");
+#else
     int fd = inotify_init();
     if (fd < 0)
         LOG_FATAL("inotify_init failed");
 
     inotify_add_watch(fd, isource, IN_CREATE);
-
-    char buf[BUF_LEN];
-    int len, i = 0;
-
-    len = read (fd, buf, BUF_LEN);
-    struct inotify_event *event;
-
-    event = (struct inotify_event *) &buf[i];
-
-    printf ("wd=%d mask=%u cookie=%u len=%u\n",
-            event->wd, event->mask,
-            event->cookie, event->len);
-
-    if (event->len)
-        printf ("name=%s\n", event->name);
+    LOG_INFO("Added inotify watch for %s", isource);
 
 
+    while (1) {
+        char buf[BUF_LEN];
+        int errno, len, i = 0;
+
+        len = read (fd, buf, BUF_LEN);
+        if (len < 0) {
+            LOG_ERROR("Something went wrong with inotify, errno: %d", errno);
+        } else if (!len) {
+            LOG_ERROR("BUF_LEN is too small??");
+        }
+        while (i < len) {
+            struct inotify_event *event;
+            event = (struct inotify_event *) &buf[i];
+            printf ("wd=%d mask=%u cookie=%u len=%u\n",
+                    event->wd, event->mask,
+                    event->cookie, event->len);
+            if (event->len)
+                printf ("name=%s\n", event->name);
+            i += EVENT_SIZE + event->len;
+        }
+    }
+#endif // HAVE_INOTIFY_INIT
 }
 int FileInput::giveInput(buffer_t *buf_prop) {
     if (reading_over) { return 0; }

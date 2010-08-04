@@ -144,7 +144,7 @@ int main (int argc, char *argv[]) {
     // --------------------------------------------------------------------------------
     // Input source must be specified, unless channels are hooked automatically
     //
-    if (channel_hook_way == MANUAL and isource == NULL) {
+    if (isource == NULL and !(channel_hook_way == AUTO and strcmp(idrv, "jack") == 0)) {
         perror("[channel/file]name not specified\n\n");
         usage();
     }
