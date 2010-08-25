@@ -10,10 +10,13 @@ def set_options(opt):
 def configure(conf):
 	conf.check_tool('compiler_cxx')
 	conf.check_cfg(atleast_pkgconfig_version='0.0.0', mandatory=True)
-	conf.check_cfg(package='sox', args='--libs', uselib_store="SOX",
-			mandatory=True)
-	conf.check_cxx(function_name='inotify_init', header_name='sys/inotify.h',
-			compiler_mode='cxx')
+	conf.check_cfg(package='sox', args='--libs', uselib_store="SOX")
+	conf.check_cxx(header_name='sys/inotify.h', compiler_mode='cxx')
+	conf.check_cxx(header_name='st.h', compiler_mode='cxx')
+	if conf.env.HAVE_ST_H:
+		conf.env.LIB_SOX1 = ['st', 'mad', 'pthread', 'ogg', 'vorbis',
+				'vorbisfile', 'vorbisenc', 'vorbisfile', 'asound']
+		conf.env.LIBPATH_SOX1 = ['/usr/lib']
 
 	conf.check_cfg(package='jack', args='--libs', uselib_store="JACK")
 	conf.write_config_header('config.h')
@@ -22,7 +25,17 @@ def build(bld):
 	cxxflags = ['-Wall', '-g', '-O2', '-I', 'default/']
 	sp_source = ['src/main.cpp', 'src/soundpatty.cpp', 'src/fileinput.cpp',\
 				 'src/logger.cpp', 'src/input.cpp']
-	sp_uselib = ['SOX']
+	sp_uselib = []
+
+	if bld.env.HAVE_SOX:
+		sp_uselib += ['SOX']
+	elif bld.env.HAVE_ST_H:
+		sp_uselib += ['SOX1']
+		sp_source += ['src/cleanup.cpp']
+	else:
+		from Logs import error
+		error('Neither st nor libsox found, exiting')
+
 	if bld.env.HAVE_JACK:
 		sp_source += ['src/jackinput.cpp']
 		sp_uselib += ['JACK']

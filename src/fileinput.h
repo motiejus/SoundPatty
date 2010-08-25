@@ -21,7 +21,11 @@
 #define __FILENPUT_H_INCLUDED__
 
 #include "input.h"
+#ifdef HAVE_SOX
 #include <sox.h>
+#elif defined HAVE_ST_H
+#include <st.h>
+#endif
 
 class FileInput : public Input {
     public:
@@ -30,7 +34,11 @@ class FileInput : public Input {
         FileInput(const char *, all_cfg_t *);
         static void monitor_ports(action_t, const char*, all_cfg_t*, void*);
     private:
+#ifdef HAVE_SOX
         sox_format_t *s;
+#elif defined HAVE_ST_H
+	ft_t s;
+#endif
         bool reading_over;
 };
 

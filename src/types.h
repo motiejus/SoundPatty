@@ -19,12 +19,15 @@
 #ifndef __TYPES_H_INCLUDED__
 #define __TYPES_H_INCLUDED__
 
-#ifdef HAS_JACK
+#ifdef HAVE_JACK
 #define nframes_t jack_nframes_t
 #define sample_t jack_audio_sample_t
+#elif defined HAVE_SOX
+#define nframes_t unsigned int
+#define sample_t sox_sample_t
 #else
 #define nframes_t unsigned int
-#define sample_t float
+#define sample_t int32_t
 #endif
 
 struct treshold_t {
@@ -53,7 +56,8 @@ class Range {
 
 struct sVolumes {
     unsigned long head, tail;
-	sample_t min, max;
+    sample_t min, max;
+    float min_orig, max_orig; // Read from config file, always 0 <= vol <= 1
     bool proc;
 };
 

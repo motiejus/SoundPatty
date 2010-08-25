@@ -97,10 +97,15 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
             istringstream tmp(C->first.substr(8));
             int i; tmp >> i;
             max_index = max(max_index, i);
+
+	    // This is hacky. Defining standard min and max values for input
+	    // instances that do not modify original values (only jack now)
             if (C->first.find("_min") != string::npos) {
-                volume[i].min = C->second;
+                volume[i].min_orig = C->second;
+		volume[i].min = (sample_t)C->second;
             } else {
-                volume[i].max = C->second;
+                volume[i].max_orig = C->second;
+		volume[i].max = (sample_t)C->second;
             }
         }
     }
@@ -171,7 +176,7 @@ vals_t SoundPatty::read_captured_values(const char * filename) {
         istringstream place(numbers[1]);
         istringstream range(numbers[2]);
 
-        double tmp2;
+        sample_t tmp2;
         pair<pair<int, Range>,valsitm_t > tmp;
         num >> tmp2; tmp.first.first = tmp2; // Index in volume
         range >> tmp2; tmp.first.second = Range(tmp2);

@@ -77,10 +77,17 @@ void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
 int FileInput::giveInput(buffer_t *buf_prop) {
     if (reading_over) { return 0; }
 
-    unsigned bufferlength = (unsigned)(s->signal.rate+0.5) * BUFFERSIZE;
 
-    sox_sample_t buf [bufferlength]; // Take BUFFERSIZE seconds
+#ifdef HAVE_SOX
+    unsigned bufferlength = (unsigned)(s->signal.rate+0.5) * BUFFERSIZE;
+    sample_t buf [bufferlength];
     size_t read_size = sox_read(s, buf, bufferlength);
+#elif defined HAVE_ST_H
+    unsigned bufferlength = (unsigned)(s->info.rate+0.5) * BUFFERSIZE;
+    sample_t buf [bufferlength];
+    size_t read_size = st_read(s, buf, bufferlength);
+#endif
+
 
     if (read_size < bufferlength) {
         LOG_INFO("EOF reached. Read_size: %d, bufferlength: %d",
@@ -102,19 +109,30 @@ FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
     memcpy(name,isource,strlen(isource)+1);
 
     reading_over = false;
+#ifdef HAVE_SOX
     s = sox_open_read(isource, NULL, NULL, NULL);
     LOG_DEBUG("Sox initialized. Sampling rate: %.6f, channels: %d, bitrate: %d, samples: %d",
             s->signal.rate, s->signal.channels, s->signal.precision, s->signal.length);
     SAMPLE_RATE = (int)s->signal.rate;
+#elif defined HAVE_ST_H
+    s = st_open_read(isource, NULL, NULL);
+    LOG_DEBUG("Sox initialized. Sampling rate: %.6f, channels: %d, samples: %d",
+            s->info.rate, s->info.channels, s->info.size);
+    SAMPLE_RATE = (int)s->info.rate;
+#endif
 
     for (vector<sVolumes>::iterator vol = cfg->second.begin(); vol != cfg->second.end(); vol++) {
-        vol->min *= (1<<30);
-        vol->max *= (1<<30);
+        vol->min = (sample_t)vol->min_orig * (1<<30);
+        vol->max = (sample_t)vol->max_orig * (1<<30);
     }
 };
 
-
 FileInput::~FileInput() {
+#ifdef HAVE_SOX
     LOG_INFO("Closing sox instance");
     sox_close(s);
+#elif defined HAVE_ST_H
+    LOG_INFO("Closing sox instance");
+    st_close(s);
+#endif
 }
