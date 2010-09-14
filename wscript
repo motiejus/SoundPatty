@@ -10,7 +10,10 @@ def set_options(opt):
 def configure(conf):
 	conf.check_tool('compiler_cxx')
 	conf.check_cfg(atleast_pkgconfig_version='0.0.0', mandatory=True)
-	conf.check_cxx(header_name='sox.h', compiler_mode='cxx', mandatory=True)
+	conf.check_cfg(package='sox', args='--libs', uselib_store='SOX',
+			mandatory=True)
+	#conf.check_cxx(header_name='sox.h', uselib_store='SOX',
+			#compiler_mode='cxx', mandatory=True)
 	conf.check_cxx(function_name='inotify_init', header_name='sys/inotify.h',
 			compiler_mode='cxx')
 

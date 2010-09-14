@@ -29,7 +29,11 @@ extern void log_mo (const int log_level, const char *file, const int line, const
     fileline = (char*)malloc(strlen(file)+27);
     sprintf(fileline, "%s(%d)", file, line);
     // &fileline[7] due to skipping first 7 characters (with default waf build it's '../src/'
-    asprintf (&prefix, "%s [%x] %-19s %-5s - %s\n", datetime, (unsigned int)pthread_self(), &fileline[7], LogLevels[log_level], format);
+    if ( -1 == 
+            asprintf (&prefix, "%s [%x] %-19s %-5s - %s\n", datetime, (unsigned int)pthread_self(), &fileline[7], LogLevels[log_level], format))
+    {
+        printf ("FATAL: Memory allocation failed!");
+    }
     delete fileline;
 
     vfprintf (stderr, prefix, arg);
