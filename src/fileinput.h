@@ -21,7 +21,9 @@
 #define __FILENPUT_H_INCLUDED__
 
 #include "input.h"
+extern "C" {
 #include <sox.h>
+}
 
 class FileInput : public Input {
     public:
