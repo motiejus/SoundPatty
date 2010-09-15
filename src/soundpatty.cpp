@@ -50,6 +50,7 @@ SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *
         //sp_params_dump_t *params = (sp_params_dump_t*)params_uni;
     } else if (action == ACTION_CAPTURE) {
         sp_params_capture_t *params = (sp_params_capture_t*)params_uni;
+        exit_after_capture = params->exit_after_capture;
         vals = params->vals;
         _callback = params->fn;
     }
@@ -143,11 +144,15 @@ int SoundPatty::go() {
                 if (_action == ACTION_CAPTURE) {
                     if (SoundPatty::do_checking(ret)) {
                         // Caught pattern
-                        return 1;
+                        if (exit_after_capture) {
+                            return 1;
+                        }
                     }
                 }
             }
         }
+        delete(buf.buf);
+
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
             // Timeout. Return 2
             return 2;

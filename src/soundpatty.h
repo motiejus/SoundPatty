@@ -52,6 +52,7 @@ class SoundPatty {
         list<workitm> work;
         Input * _input;
         char *input_params;
+        int exit_after_capture;
 };
 
 vector<string> explode(const string &delimiter, const string &str);

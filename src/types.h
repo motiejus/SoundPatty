@@ -85,6 +85,7 @@ struct sp_params_dump_t {
 };
 
 struct sp_params_capture_t {
+    int exit_after_capture;
     vals_t vals;
     void (*fn)(const char*, const double);
 };
