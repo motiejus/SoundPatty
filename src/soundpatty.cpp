@@ -266,11 +266,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
     //
     for (vals_t::iterator in_a = fina.begin(); in_a != fina.end(); in_a++)
     {
-        /*
-           char msg[200];
-           sprintf(msg, "%d %.6f matches %.6f (%d)",in_a->first.first,tr.sec,in_a->first.second.tm,in_a->second.c);
-           LOG_TRACE(msg);
-         */
+        LOG_TRACE("%.6f (%d) matches %.6f (%d)",tr.sec,in_a->first.first,in_a->first.second.tm,in_a->second.c);
         int a = in_a->second.c;
         //------------------------------------------------------------
         // Check if it exists in our work array
