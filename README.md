@@ -1,12 +1,12 @@
-### What is this ###
+## What is this ##
 Efficient and fast sound (i.e. record) recognition software.
 
-### Where can You use it ###
+## Where can You use it ##
 You can listen to live radio station and log how many your advertisements are played per day
 You can scan your music library for multiple recordings
 You can match special operator messages when trying to initiate a VoIP call (for example, "phone is out of radio coverage")
 
-### Usage ###
+## Usage ##
 Let`s launch an example test:
     ./waf configure test
 This configures, builds, installs SoundPatty to current directory, downloads sample.wav and catch_me.wav.
@@ -22,10 +22,10 @@ For automatic automatic jack channel capturing:
     $ ./soundpatty -a capture -c config.cfg -s samplefile.txt -d jack -m
 This option is suitable for VoIP. You need just to open the Jack port with callee (caller)
     audio and SoundPatty will recognize and alert for you :-)
-#### !!! NOTE !!! ####
+### !!! NOTE !!! ###
 you have to create sample files with the same driver you will capture, otherwise it (might) not work.
 
-### TODO ###
+## TODO ##
 Major:
 
 * Make capturing algorithm more tolerant about items in the first positions (say, 30% allowed ranges) and more restrictive at the end.
@@ -34,4 +34,5 @@ Major:
 * Force sample creation and detection with same input driver (jack and file)
 
 Somewhen:
+
 * Make the main matching algorithm based on tree (somehow). This would improve efficiency in "capturing".
