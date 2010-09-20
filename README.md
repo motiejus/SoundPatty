@@ -22,11 +22,12 @@ For automatic automatic jack channel capturing:
     $ ./soundpatty -a capture -c config.cfg -s samplefile.txt -d jack -m
 This option is suitable for VoIP. You need just to open the Jack port with callee (caller)
     audio and SoundPatty will recognize and alert for you :-)
-!!! NOTE !!!
-    you have to create sample files with the same driver you will capture, otherwise it (might) not work.
+#### !!! NOTE !!! ####
+you have to create sample files with the same driver you will capture, otherwise it (might) not work.
 
 ### TODO ###
 Major:
+
 * Make capturing algorithm more tolerant about items in the first positions (say, 30% allowed ranges) and more restrictive at the end.
     This would help *_alot_* for determining whether record is `recognize-able` or not.
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
