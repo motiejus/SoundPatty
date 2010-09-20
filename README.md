@@ -32,6 +32,7 @@ Major:
     This would help *_alot_* for determining whether record is `recognize-able` or not.
 * Test and substitute map<int, Range>::equal_range in SoundPatty::do_checking, performance cost now. O(n) instead of O(log n)
 * Force sample creation and detection with same input driver (jack and file)
+* Logger displays fractions of seconds incorrectly for fractions below 1000
 
 Somewhen:
 
