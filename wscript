@@ -47,16 +47,15 @@ def proc_test(sc):
 	download("catch_me.wav",
 			"http://github.com/downloads/Motiejus/SoundPatty/catch_me.wav")
 	from Utils import pprint
-	pprint ('CYAN', "Creating sample file...")
+	pprint ('CYAN', "Creating sample file... ", sep="")
 	cmd = "./soundpatty -qa dump -c config.cfg sample.wav > samplefile.txt"
-	print (cmd+"\n")
+	print (cmd)
 	os.system(cmd)
-	pprint ('CYAN', "Launching checker...")
-	cmd = ['./soundpatty', '-acapture', '-cconfig.cfg',
+	pprint ('CYAN', "Launching checker... ", sep="")
+	cmd = ['./soundpatty', '-acapture', '-cconfig.cfg', '-qx',
 					'-ssamplefile.txt', 'catch_me.wav']
 	print (" ".join(cmd))
-	output = Popen(cmd,
-			stdout=PIPE, stderr=open('/dev/null', 'w')).communicate()[0]
+	output = Popen(cmd, stdout=PIPE).communicate()[0]
 	print (output)
 	if output.find('FOUND') != -1:
 		print("Tests passed")

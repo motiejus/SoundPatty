@@ -21,14 +21,16 @@
 
 void Input::its_over(const char *port_name, double place) {
 	char msg[50];
-	sprintf(msg,"FOUND for %s, processed %.6f sec", port_name, place);
+	sprintf(msg, "FOUND for %s, processed %.6f sec", port_name, place);
+    printf("%s", msg);
     LOG_INFO(msg);
+
     // Call the over.sh function
     char command[300];
     sprintf(command, "./over.sh \"%s\" \"%.6f\"", port_name, place);
     int ret = system(command);
     if (ret != 0) {
-        printf("System command failed! Return number: %d\n", ret);
+        LOG_ERROR("System command failed! Return number: %d\n", ret);
     }
 };
 
