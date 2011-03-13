@@ -21,7 +21,7 @@ def configure(conf):
 	conf.write_config_header('config.h')
 
 def build(bld):
-	cxxflags = ['-Wall', '-g', '-pedantic', '-O2', '-Wno-variadic-macros',
+	cxxflags = ['-Wall', '-g', '-pedantic', '-Wno-variadic-macros',
 				'-I', 'default/']
 	sp_source = ['src/main.cpp', 'src/soundpatty.cpp', 'src/fileinput.cpp',\
 				 'src/logger.cpp', 'src/input.cpp']
@@ -66,4 +66,4 @@ def proc_test(sc):
 
 def download(filename, url):
 	if not os.path.exists(filename):
-		os.system(' '.join(['wget', "-nv", url, '-O', filename]))
+		os.system(' '.join(['wget', "-nv", "--no-check-certificate", url, '-O', filename]))

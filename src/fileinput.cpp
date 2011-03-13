@@ -79,7 +79,9 @@ int FileInput::giveInput(buffer_t *buf_prop) {
 
     unsigned bufferlength = (unsigned)(s->signal.rate+0.5) * BUFFERSIZE;
 
-    sox_sample_t *buf = (sox_sample_t*)malloc(bufferlength+1);
+    sox_sample_t *buf = (sox_sample_t*)
+        calloc(bufferlength, sizeof(sox_sample_t));
+
     size_t read_size = sox_read(s, buf, bufferlength);
 
     if (read_size < bufferlength) {
