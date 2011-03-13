@@ -94,7 +94,7 @@ int FileInput::giveInput(buffer_t *buf_prop) {
 	}
     buf_prop->nframes = read_size;
     return 1;
-};
+}
 
 
 FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
@@ -111,7 +111,7 @@ FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
         vol->min *= (1<<30);
         vol->max *= (1<<30);
     }
-};
+}
 
 
 FileInput::~FileInput() {

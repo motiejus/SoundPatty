@@ -35,12 +35,12 @@ void *SoundPatty::go_thread(void *args) {
     delete inst;
     LOG_DEBUG("SoundPatty and Input instances deleted. Exiting thread");
     return NULL;
-};
+}
 
 void SoundPatty::dump_out(const treshold_t args) { // STATIC
     printf ("%d;%.6f;%.6f\n", args.r, args.place, args.sec);
     fflush(stdout);
-};
+}
 
 
 SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *params_uni) {
@@ -61,7 +61,7 @@ SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *
 
     _input->WAVE = _input->SAMPLE_RATE * cfg["minwavelen"];
     _input->CHUNKSIZE = cfg["chunklen"] * _input->SAMPLE_RATE;
-};
+}
 
 
 all_cfg_t SoundPatty::read_cfg (const char * filename) {
@@ -110,13 +110,13 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
 	return all_cfg_t(cfg, volume);
-};
+}
 
 
 int SoundPatty::setInput(Input * input) {
     _input = input;
     return 0;
-};
+}
 
 
 int SoundPatty::go() {
@@ -159,7 +159,7 @@ int SoundPatty::go() {
         }
     }
     return 0;
-};
+}
 
 
 vals_t SoundPatty::read_captured_values(const char * filename) {
@@ -185,7 +185,7 @@ vals_t SoundPatty::read_captured_values(const char * filename) {
         vals.insert(tmp);
     }
     return vals;
-};
+}
 
 
 int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
@@ -229,7 +229,7 @@ int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
         }
     }
     return 0;
-};
+}
 
 
 // --------------------------------------------------------------------------------
@@ -300,7 +300,7 @@ int SoundPatty::do_checking(const treshold_t tr) {
         }
     }
     return 0;
-};
+}
 
 
 vector<string> explode(const string &delimiter, const string &str) { // Found somewhere on NET
@@ -324,11 +324,11 @@ vector<string> explode(const string &delimiter, const string &str) { // Found so
     }
     arr.push_back(str.substr(k, i-k));
     return arr;
-};
+}
 
 
 workitm::workitm(const int a, const unsigned long b) {
     this->a = a; this->b = b;
     len = 0;
     trace.push_back(pair<int,unsigned long>(a,b));
-};
+}

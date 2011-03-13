@@ -32,7 +32,7 @@ void Input::its_over(const char *port_name, double place) {
     if (ret != 0) {
         LOG_ERROR("System command failed! Return number: %d\n", ret);
     }
-};
+}
 
 void Input::new_port_created(
         action_t action, const char *port_name,
