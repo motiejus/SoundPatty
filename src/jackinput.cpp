@@ -33,12 +33,14 @@ map<string,JackInput*> jackInputs;
 
 int JackInput::jack_proc(nframes_t nframes, void *arg) {
     pthread_mutex_lock(&jackInputsMutex);
-    for(map<string,JackInput*>::iterator inp = jackInputs.begin(); inp != jackInputs.end(); inp++) {
+    for(map<string,JackInput*>::iterator inp = jackInputs.begin();
+            inp != jackInputs.end(); inp++) {
         JackInput *in_inst = inp->second;
         pthread_mutex_lock(&in_inst->data_mutex);
 
         buffer_t buffer;
-        buffer.buf = (sample_t *) jack_port_get_buffer (in_inst->dst_port, nframes);
+        buffer.buf = (sample_t *) jack_port_get_buffer(
+                in_inst->dst_port, nframes);
         buffer.nframes = nframes;
         in_inst->data_in.push_back(buffer);
         pthread_cond_signal(&in_inst->condition_cond);
@@ -46,24 +48,28 @@ int JackInput::jack_proc(nframes_t nframes, void *arg) {
     }
     pthread_mutex_unlock(&jackInputsMutex);
     return 0;
-};
+}
 
 jack_client_t *JackInput::get_client() {
     bool new_client = false;
-    if (mainclient == NULL) { // Jack client initialization (SINGLETON should be called)
+    // Jack client initialization (SINGLETON should be called)
+    if (mainclient == NULL) {
         new_client = true;
         ostringstream dst_port_str, dst_client_str;
         dst_client_str << "sp_client_" << getpid();
-        if ((mainclient = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
+        if ((mainclient = jack_client_new (
+                        string(dst_client_str.str()).c_str())) == 0) {
 			LOG_FATAL("jack server not running?\n");
 			exit(1);
         }
         LOG_INFO("Created new jack client %s", dst_client_str.str().c_str());
         if (jack_set_process_callback(mainclient, JackInput::jack_proc, NULL)) {
-			LOG_FATAL("Failed to set process registration callback for %s", dst_client_str.str().c_str());
+			LOG_FATAL("Failed to set process registration callback for %s",
+                    dst_client_str.str().c_str());
         }
-        LOG_DEBUG("Created process callback jack_proc for %s", dst_client_str.str().c_str());
-        if (jack_activate (mainclient)) { LOG_FATAL("cannot activate client"); }
+        LOG_DEBUG("Created process callback jack_proc for %s",
+                dst_client_str.str().c_str());
+        if (jack_activate (mainclient)) { LOG_FATAL("can't activate client"); }
         LOG_INFO("Activated jack client %s", dst_client_str.str().c_str());
     }
     if (new_client) {
@@ -72,7 +78,7 @@ jack_client_t *JackInput::get_client() {
         LOG_DEBUG("Jack client requested, returned old one");
     }
     return mainclient;
-};
+}
 
 JackInput::JackInput(const char *src_port_name, all_cfg_t *cfg) {
     name = (char*) malloc(strlen(src_port_name)+1);
@@ -93,11 +99,13 @@ JackInput::JackInput(const char *src_port_name, all_cfg_t *cfg) {
     }
 
     sprintf(shortname, "input_%d", ++JackInput::number_of_clients);
-    dst_port = jack_port_register (client, shortname, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+    dst_port = jack_port_register (client, shortname,
+            JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
     dst_port_name = string(jack_port_name(dst_port));
 
     if (jack_connect(client, src_port_name, jack_port_name(dst_port))) {
-        LOG_FATAL("Failed to connect %s to %s, exiting.\n", src_port_name, jack_port_name(dst_port));
+        LOG_FATAL("Failed to connect %s to %s, exiting.\n",
+                src_port_name, jack_port_name(dst_port));
 		exit(1);
     }
 
@@ -106,7 +114,7 @@ JackInput::JackInput(const char *src_port_name, all_cfg_t *cfg) {
     jackInputs.insert( pair<string,JackInput*>(dst_port_name,this) );
     pthread_mutex_unlock(&jackInputsMutex);
     LOG_INFO("jack port to jackInputs inserted, port ready to work");
-};
+}
 
 
 JackInput::~JackInput() {
@@ -122,7 +130,8 @@ JackInput::~JackInput() {
     jackInputs.erase(this->dst_port_name);
     pthread_mutex_unlock(&jackInputsMutex);
 
-    LOG_DEBUG("Deleted JackInput from jackInputs, ports are closed, leaving destructor");
+    LOG_DEBUG("Deleted JackInput from jackInputs, ports are closed,\
+            leaving destructor");
 }
 
 int JackInput::giveInput(buffer_t *buffer) {
@@ -137,7 +146,8 @@ int JackInput::giveInput(buffer_t *buffer) {
     return 1;
 }
 
-void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *cfg, void *sp_params) {
+void JackInput::monitor_ports(action_t action, const char* isource,
+        all_cfg_t *cfg, void *sp_params) {
     // Should be called in new thread. Waits for inputs
 
     pthread_mutex_init(&p_queue_mutex, NULL);
@@ -145,7 +155,7 @@ void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
 
     ostringstream dst_client_str;
     dst_client_str << "sp_manager_" << getpid();
-    if ((client = jack_client_new (string(dst_client_str.str()).c_str())) == 0) {
+    if ((client = jack_client_new(string(dst_client_str.str()).c_str())) == 0){
          LOG_FATAL ("jack server not running?");
 		 exit(1);
     }
@@ -170,13 +180,16 @@ void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
             pthread_mutex_unlock(&p_queue_mutex);
             if (port_info.second) {
                 LOG_DEBUG("Got new jack port, name: %s", port_name);
-                all_cfg_t cfg_local(cfg->first, cfg->second); // Wow that's a nice hack :-)
+                // Wow that's a nice hack :-)
+                all_cfg_t cfg_local(cfg->first, cfg->second);
 
                 JackInput *input = new JackInput(port_name, &cfg_local);
-                LOG_DEBUG("Created new JackInput instance (port name: %s), calling new_port_created", port_name);
-                new_port_created( action, port_name, input, &cfg_local, sp_params );
+                LOG_DEBUG("Created new JackInput instance (port name: %s),\
+                        calling new_port_created", port_name);
+                new_port_created(action, port_name, input, &cfg_local,
+                        sp_params);
             } else { // Destroy this JackInput instance
-                LOG_INFO("Calling JackInput destructor for port %s", port_name);
+                LOG_INFO("Call JackInput destructor for port %s", port_name);
                 //jackInputs[string(port_name)]->~JackInput();
             }
             pthread_mutex_lock(&p_queue_mutex);
@@ -184,18 +197,22 @@ void JackInput::monitor_ports(action_t action, const char* isource, all_cfg_t *c
 	}
 }
 
-void JackInput::port_connect(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
+void JackInput::port_connect(jack_port_id_t a, jack_port_id_t b, int connect,
+        void *arg) {
     jack_port_t *port_a = jack_port_by_id(JackInput::client, a);
     jack_port_t *port_b = jack_port_by_id(JackInput::client, b);
 
     if (!connect) {
-		LOG_INFO("Ports %s and %s disconnect", jack_port_name(port_a), jack_port_name(port_b));
+		LOG_INFO("Ports %s and %s disconnect", jack_port_name(port_a),
+                jack_port_name(port_b));
         // Check if this is one of sp_client_ ports
-        if (strstr(jack_port_name(port_b), "sp_client_") != jack_port_name(port_b)) {
+        if (strstr(jack_port_name(port_b), "sp_client_") !=
+                jack_port_name(port_b)) {
             return;
         }
         // We have to disconnect this port
-		LOG_DEBUG("Attempting to disconnect %s from %s", jack_port_name(port_a), jack_port_name(port_b));
+		LOG_DEBUG("Attempting to disconnect %s from %s",jack_port_name(port_a),
+                jack_port_name(port_b));
         LOG_INFO("Adding to stack <%s, false>", jack_port_name(port_b));
         pthread_mutex_lock(&JackInput::p_queue_mutex);
         JackInput::p_queue.push_back(pair<jack_port_t*,bool>(port_b, false));
@@ -204,7 +221,7 @@ void JackInput::port_connect(jack_port_id_t a, jack_port_id_t b, int connect, vo
 	}
 
     // See if "dst" port does not begin with sp_client_
-    if (strstr(jack_port_name(port_b), "sp_client_") == jack_port_name(port_b)) {
+    if (strstr(jack_port_name(port_b), "sp_client_")==jack_port_name(port_b)) {
         return;
     }
     if (!(JackPortIsOutput & jack_port_flags(port_a))) return;
@@ -213,4 +230,4 @@ void JackInput::port_connect(jack_port_id_t a, jack_port_id_t b, int connect, vo
     JackInput::p_queue.push_back(pair<jack_port_t*,bool>(port_a, true));
     pthread_mutex_unlock(&JackInput::p_queue_mutex);
     pthread_cond_signal(&JackInput::p_queue_cond);
-};
+}
