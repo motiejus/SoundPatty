@@ -95,6 +95,7 @@ int FileInput::giveInput(buffer_t *buf_prop) {
 		buf_prop->buf[i] = (sample_t)buf[i];
 	}
     buf_prop->nframes = read_size;
+    buf_prop->delete_me = true;
     return 1;
 }
 

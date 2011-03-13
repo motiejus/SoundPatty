@@ -78,6 +78,7 @@ typedef pair<map<string,double>, vector<sVolumes> > all_cfg_t;
 typedef struct {
     sample_t * buf;
     nframes_t nframes;
+    bool delete_me; // free the buffer manually after processing?
 } buffer_t;
 
 

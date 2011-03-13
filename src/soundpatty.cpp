@@ -151,7 +151,9 @@ int SoundPatty::go() {
                 }
             }
         }
-        delete(buf.buf);
+        if (buf.delete_me) {
+            delete(buf.buf);
+        }
 
         if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
             // Timeout. Return 2

@@ -134,13 +134,15 @@ JackInput::~JackInput() {
             leaving destructor");
 }
 
-int JackInput::giveInput(buffer_t *buffer) {
+int JackInput::giveInput(buffer_t *buf_prop) {
     // Create a new thread and wait for input. When get a buffer - return back.
 
     pthread_mutex_lock(&data_mutex);
     pthread_cond_wait(&condition_cond, &data_mutex);
 
-    memcpy((void*)buffer, (void*)&data_in.front(), sizeof(*buffer)); // Copy all buffer data blindly
+    memcpy((void*)buf_prop, (void*)&data_in.front(), sizeof(*buf_prop));
+    buf_prop->delete_me = false;
+
     data_in.pop_front(); // Remove the processed waiting member
     pthread_mutex_unlock(&data_mutex);
     return 1;
