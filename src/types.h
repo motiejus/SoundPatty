@@ -27,6 +27,13 @@
 #define sample_t float
 #endif
 
+#include <vector>
+#include <map>
+#include <list>
+#include <string>
+
+using namespace std;
+
 struct treshold_t {
     int r; // Volume index (from configs)
     double place, // Absolute place in file

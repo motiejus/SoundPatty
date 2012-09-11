@@ -18,6 +18,7 @@
 
 #include <unistd.h>
 #include "main.h"
+#include "aggregate.h"
 #include "soundpatty.h"
 #include "fileinput.h"
 #ifdef HAVE_JACK
@@ -148,10 +149,12 @@ int main (int argc, char *argv[]) {
         idrv = (char*) malloc(5 * sizeof(char));
         strcpy(idrv, "file");
     }
-    // --------------------------------------------------------------------------------
-    // Input source must be specified, unless channels are hooked automatically
+    // -------------------------------------------------------------------------
+    // Input source must be specified, unless channels are hooked
+    // automatically
     //
-    if (isource == NULL and !(channel_hook_way == AUTO and strcmp(idrv, "jack") == 0)) {
+    if (isource == NULL and
+            !(channel_hook_way == AUTO and strcmp(idrv, "jack") == 0)) {
         perror("[channel/file]name not specified\n\n");
         usage();
     }
@@ -203,6 +206,9 @@ int main (int argc, char *argv[]) {
         LOG_INFO("Starting main SoundPatty loop");
         SoundPatty::go_thread(pat);
         LOG_INFO("SoundPatty main loop completed");
+        if (action == ACTION_AGGREGATE) {
+            printf("%s", percent(pat->findings));
+        }
     } else {
         if (strcmp(idrv, "file") == 0) {
 

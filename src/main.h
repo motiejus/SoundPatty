@@ -23,13 +23,8 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <cstdio>
-#include <map>
 #include <set>
-#include <list>
-#include <vector>
 #include <deque>
-#include <string>
-#include <string.h>
 #include <iostream>
 #include <iomanip>
 #include <sstream>

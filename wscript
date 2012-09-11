@@ -24,7 +24,7 @@ def build(bld):
 	cxxflags = ['-Wall', '-g', '-pedantic', '-Wno-variadic-macros',
 				'-I', 'default/']
 	sp_source = ['src/main.cpp', 'src/soundpatty.cpp', 'src/fileinput.cpp',\
-				 'src/logger.cpp', 'src/input.cpp']
+				 'src/logger.cpp', 'src/input.cpp', 'src/aggregate.cpp']
 	sp_uselib = ['SOX']
 	if bld.env.HAVE_JACK:
 		sp_source += ['src/jackinput.cpp']
