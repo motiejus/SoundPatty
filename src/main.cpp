@@ -207,7 +207,9 @@ int main (int argc, char *argv[]) {
         SoundPatty::go_thread(pat);
         LOG_INFO("SoundPatty main loop completed");
         if (action == ACTION_AGGREGATE) {
+            LOG_INFO("Calling aggregate");
             printf("%s", percent(pat->findings));
+            fflush(stdout);
         }
     } else {
         if (strcmp(idrv, "file") == 0) {

@@ -3,5 +3,5 @@
 using namespace std;
 
 char * percent(deque<treshold_t> d) {
-    return "bac";
+    return "bac\n";
 }
