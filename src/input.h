@@ -29,6 +29,7 @@ class Input {
         // constructor (any type)
         virtual ~Input() {};
         virtual int giveInput(buffer_t * buffer) {
+            (void)buffer;
             perror("giveInput not implemented, exiting\n");
 			exit(1);
         };

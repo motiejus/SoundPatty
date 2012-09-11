@@ -38,6 +38,7 @@ void Input::new_port_created(
         action_t action, const char *port_name,
         Input *input, all_cfg_t *cfg, void *sp_params) {
 
+    int err;
     // Hum, must create new SomeInput instance here
     // So we have new port created here. In case of jack -
     // it's safe to call jack server here, since it's not a caller thread :-)
@@ -47,7 +48,7 @@ void Input::new_port_created(
 
     pthread_t tmp; pthread_attr_t attr; pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (int err = pthread_create(&tmp, &attr, SoundPatty::go_thread, (void*)pat)) {
+    if (err = pthread_create(&tmp, &attr, SoundPatty::go_thread, (void*)pat)) {
         LOG_ERROR("Failed to create thread for %s, error %d", port_name, err);
     }
     LOG_INFO("Launched new SoundPatty thread for %s", port_name);

@@ -27,6 +27,7 @@ class Input;
 class SoundPatty {
     public:
         SoundPatty(action_t, Input*, all_cfg_t*, void *);
+        ~SoundPatty();
         /*
         SoundPatty(const char*, Input *, all_cfg_t *);
         SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg, vals_t vals,

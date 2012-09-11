@@ -31,7 +31,6 @@ void *SoundPatty::go_thread(void *args) {
     LOG_DEBUG("Terminating SoundPatty instance");
     // Process is over - either timeout or catch. Callbacks launched already.
     // Must terminate SoundPatty and Input instances
-    delete inst->_input;
     delete inst;
     LOG_DEBUG("SoundPatty and Input instances deleted. Exiting thread");
     return NULL;
@@ -62,6 +61,10 @@ SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *
 
     _input->WAVE = _input->SAMPLE_RATE * cfg["minwavelen"];
     _input->CHUNKSIZE = cfg["chunklen"] * _input->SAMPLE_RATE;
+}
+
+SoundPatty::~SoundPatty() {
+    delete _input;
 }
 
 
