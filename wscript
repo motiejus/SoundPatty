@@ -21,7 +21,7 @@ def configure(conf):
 	conf.write_config_header('config.h')
 
 def build(bld):
-	cxxflags = ['-Wall', '-g', '-pedantic', '-Wno-variadic-macros',
+	cxxflags = ['-Wall', '-W', '-g', '-pedantic', '-Wno-variadic-macros',
 				'-I', 'default/']
 	sp_source = ['src/main.cpp', 'src/soundpatty.cpp', 'src/fileinput.cpp',\
 				 'src/logger.cpp', 'src/input.cpp', 'src/aggregate.cpp']

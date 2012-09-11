@@ -55,6 +55,7 @@ SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *
         _callback = params->fn;
     }
 
+    findings = deque<treshold_t>();
 	cfg = all_cfg->first;
 	volume = all_cfg->second;
     gSCounter = gMCounter = 0;

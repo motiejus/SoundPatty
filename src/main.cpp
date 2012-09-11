@@ -43,9 +43,10 @@ void usage() {
         "  -q  quiet output. Only FATAL are shown (supersedes -v)\n\n"
 
         "Actions:\n"
-        "  dump     : creates a sample fingerprint\n"
-        "  capture  : tries to capture a sound pattern\n"
-        "  showdrv  : show possible input drivers\n\n"
+        "  dump      : creates a sample fingerprint\n"
+        "  capture   : tries to capture a sound pattern\n"
+        "  showdrv   : show possible input drivers\n\n"
+        "  aggregate : like dump, but aggregate output\n\n"
 
         "[Channel/file]name:\n"
 #ifdef HAVE_JACK
