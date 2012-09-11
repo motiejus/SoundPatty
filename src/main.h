@@ -27,6 +27,7 @@
 #include <set>
 #include <list>
 #include <vector>
+#include <deque>
 #include <string>
 #include <string.h>
 #include <iostream>

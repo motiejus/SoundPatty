@@ -79,6 +79,8 @@ int main (int argc, char *argv[]) {
                     action = ACTION_DUMP;
                 } else if (strcmp(optarg, "capture") == 0) {
                     action = ACTION_CAPTURE;
+                } else if (strcmp(optarg, "aggregate") == 0) {
+                    action = ACTION_AGGREGATE;
                 } else if (strcmp(optarg, "showdrv") == 0) {
                     action = ACTION_SHOWDRV;
                 } else {

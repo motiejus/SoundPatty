@@ -91,6 +91,12 @@ struct sp_params_capture_t {
     void (*fn)(const char*, const double);
 };
 
-enum action_t { ACTION_UNDEF = -1, ACTION_CAPTURE = 0, ACTION_DUMP = 1, ACTION_SHOWDRV = 2 };
+enum action_t {
+    ACTION_UNDEF = -1,
+    ACTION_CAPTURE = 0,
+    ACTION_DUMP = 1,
+    ACTION_SHOWDRV = 2,
+    ACTION_AGGREGATE = 3
+};
 
 #endif // __TYPES_H_INCLUDED__

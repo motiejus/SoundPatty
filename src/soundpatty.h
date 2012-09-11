@@ -45,6 +45,7 @@ class SoundPatty {
                       gSCounter; // How many samples we skipped
         int search_patterns (sample_t cur, treshold_t *);
         vector<sVolumes> volume;
+        deque<treshold_t> findings;
         void (*_callback)(const char*, const double);
     private:
         action_t _action;

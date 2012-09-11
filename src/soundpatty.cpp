@@ -121,7 +121,8 @@ int SoundPatty::setInput(Input * input) {
 
 int SoundPatty::go() {
 
-    string which_timeout (_action == ACTION_DUMP ? "sampletimeout" : "catchtimeout");
+    string which_timeout (_action == ACTION_DUMP ?
+            "sampletimeout" : "catchtimeout");
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
@@ -134,21 +135,21 @@ int SoundPatty::go() {
             {
                 /*
                    LOG_TRACE("Found pattern ("<<setw(3)<<ret.b<<") "
-                   "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<< setw(8) << ret.sec<<")");
+                   "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<<
+                   setw(8) << ret.sec<<")");
                  */
-                LOG_TRACE("Found pattern (%-.3f) %-.3f; %.6f; %.6f", ret.b, ret.r, ret.place, ret.sec);
+                LOG_TRACE("Found pattern (%-.3f) %-.3f; %.6f; %.6f",
+                        ret.b, ret.r, ret.place, ret.sec);
 
-                if (_action == ACTION_DUMP) {
+                if (_action == ACTION_DUMP)
                     SoundPatty::dump_out(ret);
-                }
-                if (_action == ACTION_CAPTURE) {
-                    if (SoundPatty::do_checking(ret)) {
+                else if (_action == ACTION_AGGREGATE)
+                    this->findings.push_back(ret);
+                else if (_action == ACTION_CAPTURE)
+                    if (SoundPatty::do_checking(ret))
                         // Caught pattern
-                        if (exit_after_capture) {
+                        if (exit_after_capture)
                             return 1;
-                        }
-                    }
-                }
             }
         }
         if (buf.delete_me) {
