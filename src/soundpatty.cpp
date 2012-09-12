@@ -42,7 +42,8 @@ void SoundPatty::dump_out(const treshold_t args) { // STATIC
 }
 
 
-SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg, void *params_uni) {
+SoundPatty::SoundPatty(action_t action, Input *input, all_cfg_t *all_cfg,
+        void *params_uni) {
     _action = action;
     _input = input;
     if (action == ACTION_DUMP) {

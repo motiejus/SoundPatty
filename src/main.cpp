@@ -45,7 +45,7 @@ void usage() {
         "Actions:\n"
         "  dump      : creates a sample fingerprint\n"
         "  capture   : tries to capture a sound pattern\n"
-        "  showdrv   : show possible input drivers\n\n"
+        "  showdrv   : show possible input drivers\n"
         "  aggregate : like dump, but aggregate output\n\n"
 
         "[Channel/file]name:\n"
@@ -209,9 +209,8 @@ int main (int argc, char *argv[]) {
         LOG_INFO("SoundPatty main loop completed");
         if (action == ACTION_AGGREGATE) {
             LOG_INFO("Calling aggregate");
-            //printf("%s", percent(pat->findings));
-            size_t s = pat->findings.size();
-            printf("%u\n", s);
+            const char* s = percent(pat->findings, this_cfg->second);
+            printf("%s\n", s);
         }
     } else {
         if (strcmp(idrv, "file") == 0) {
