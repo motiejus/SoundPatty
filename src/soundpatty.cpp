@@ -96,7 +96,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
     sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
     volume.assign(cfg.size(), tmp); // Assign a bit more then nescesarry
-    int max_index = 0; // Number of different tresholds
+    int max_index = -1; // Number of different tresholds
     for(map<string, double>::iterator C = cfg.begin(); C != cfg.end(); C++) {
         // Failed to use boost::regex :(
         if (C->first.find("treshold") == 0) {
@@ -110,7 +110,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
             }
         }
     }
-    if (max_index == 0) {
+    if (max_index == -1) {
         LOG_FATAL("ERROR. Length of vol array: 0\n");
     }
     volume.assign(volume.begin(), volume.begin()+max_index+1);
