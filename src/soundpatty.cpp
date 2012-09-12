@@ -137,7 +137,12 @@ int SoundPatty::go() {
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
             sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
-            if (search_patterns(cur, &ret))
+            //printf("Cur: %f, second: %f, frame: %d\n",
+            //        cur, sec_processed(), i);
+            // Special handling of last bit, because we might still be in a
+            // wave which we do not want to miss
+            bool last_sample = _input->reading_over && i == buf.nframes - 1;
+            if (search_patterns(cur, &ret, last_sample))
             {
                 LOG_TRACE("Found pattern (%-.3f) %-.3f; %.6f; %.6f",
                         ret.b, ret.r, ret.place, ret.sec);
@@ -195,10 +200,13 @@ vals_t SoundPatty::read_captured_values(const char * filename) {
 }
 
 
-int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
+/*
+ * last means that we are processing the last bit of the file
+ */
+int SoundPatty::search_patterns (sample_t cur, treshold_t * ret, bool last) {
     int v = 0; // Counter for volume
     for (vector<sVolumes>::iterator V = volume.begin(); V != volume.end(); V++, v++) {
-        if (V->min <= cur && cur <= V->max) {
+        if (!last && V->min <= cur && cur <= V->max) {
             // ------------------------------------------------------------
             // If it's first item in this wave (proc = processing started)
             //
@@ -211,25 +219,28 @@ int SoundPatty::search_patterns (sample_t cur, treshold_t * ret) {
             //
             V->head = gSCounter;
         } else { // We are not in the wave
-            if (V->proc && (V->min < 0.001 || gSCounter - V->head > _input->WAVE)) {
+            if (last || (V->proc &&
+                        (V->min < 0.001 || gSCounter - V->head > _input->WAVE)))
+                    {
 
                 //------------------------------------------------------------
                 // This wave is over
                 //
-                V->proc = false; // Stop processing for both cases: found and not
+                // Stop processing for both cases: found and not
+                V->proc = false;
 
                 if (gSCounter - V->tail >= _input->CHUNKSIZE) {
-                    // ------------------------------------------------------------
+                    // ---------------------------------------------------------
                     // The previous chunk is big enough to be noticed
                     //
-                    ret -> r = v;
-                    ret -> place = (double)V->tail/_input->SAMPLE_RATE;
-                    ret -> sec = (double)(V->head - V->tail)/_input->SAMPLE_RATE;
-                    ret -> b = gMCounter++;
+                    ret->r = v;
+                    ret->place = (double)V->tail/_input->SAMPLE_RATE;
+                    ret->sec = (double)(V->head - V->tail)/_input->SAMPLE_RATE;
+                    ret->b = gMCounter++;
                     return 1;
                 } 
                 // ------------------------------------------------------------
-                // Else it is too small, but we don't want to do anything in that case
+                // Else it is too small, but we don't want to do anything
                 // So therefore we just say that wave processing is over
                 //
             }

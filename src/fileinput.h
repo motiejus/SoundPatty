@@ -33,7 +33,6 @@ class FileInput : public Input {
         static void monitor_ports(action_t, const char*, all_cfg_t*, void*);
     private:
         sox_format_t *s;
-        bool reading_over;
 };
 
 #endif //__FILEINPUT_H_INCLUDED__

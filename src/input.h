@@ -37,6 +37,7 @@ class Input {
 
         // ----------------------------------------------------------------------
         // Subclasses must also fill these values (constant at runtime)
+        bool reading_over;
         char *name; // Unique name for each input stream (eg. filename)
         int SAMPLE_RATE, DATA_SIZE;
         double WAVE, CHUNKSIZE;
