@@ -139,11 +139,6 @@ int SoundPatty::go() {
             sample_t cur = buf.buf[i]<0?-buf.buf[i]:buf.buf[i];
             if (search_patterns(cur, &ret))
             {
-                /*
-                   LOG_TRACE("Found pattern ("<<setw(3)<<ret.b<<") "
-                   "("<< ret.r <<";"<< left << setw(1) << ret.place <<";"<<
-                   setw(8) << ret.sec<<")");
-                 */
                 LOG_TRACE("Found pattern (%-.3f) %-.3f; %.6f; %.6f",
                         ret.b, ret.r, ret.place, ret.sec);
 
