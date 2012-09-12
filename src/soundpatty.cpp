@@ -131,7 +131,8 @@ int SoundPatty::go() {
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
-        LOG_TRACE("Got buffer, length: %d", buf.nframes);
+        LOG_TRACE("Got buffer, length: %d, seconds processed: %f",
+                buf.nframes, sec_processed());
         treshold_t ret;
 
         for (unsigned int i = 0; i < buf.nframes; gSCounter++, i++) {
