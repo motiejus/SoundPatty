@@ -106,7 +106,10 @@ FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
     memcpy(name,isource,strlen(isource)+1);
 
     reading_over = false;
-    s = sox_open_read(isource, NULL, NULL, NULL);
+    if ((s = sox_open_read(isource, NULL, NULL, NULL)) == NULL) {
+        perror("sox_open_read");
+        exit(1);
+    }
     LOG_DEBUG("Sox initialized. Sampling rate: %.6f, channels: %d,"
             "bitrate: %d, samples: %d",
             s->signal.rate, s->signal.channels,

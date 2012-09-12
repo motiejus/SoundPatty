@@ -29,7 +29,7 @@ action_t action;
 enum channel_hook_way_t { AUTO, MANUAL } channel_hook_way = MANUAL;
 
 void usage() {
-    perror (
+    fprintf (stderr,
         "soundpatty <options> [channel/file]name\n\n"
 
         "Options:\n"
