@@ -115,8 +115,8 @@ FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
 
     for (vector<sVolumes>::iterator vol = cfg->second.begin();
             vol != cfg->second.end(); vol++) {
-        vol->min *= (1<<30);
-        vol->max *= (1<<30);
+        vol->min *= 2147483648U; // 1 << 31
+        vol->max *= 2147483648U;
     }
 }
 
