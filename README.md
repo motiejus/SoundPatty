@@ -35,6 +35,24 @@ For automatic automatic jack channel capturing:
 This option is suitable for VoIP. You need just to open the Jack port with
 callee (caller) audio and SoundPatty will recognize and alert for you :-)
 
+## Percent of Silence in the record ##
+
+SoundPatty can be used to calculate how much silence relatively to record
+length was in the record.
+
+    $ ./soundpatty -a aggregate -c silence.cfg a_file.wav
+
+Output:
+
+    0: 295.222, 94.9146%
+
+1. `0:` means volume treshold. Since there is only one treshold in silent.cfg,
+   only one value is seen.
+2. `295.222` is the length of silence in the record.
+3. `94.9146%` is the percentage of silence in the record. Note that it can be
+   derived from the 2'nd value and file length, so this value is there for
+   convenience.
+
 ### Please note  ###
 Create sample files with the same driver you will capture, otherwise capturing
 might not work.
