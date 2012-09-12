@@ -3,4 +3,4 @@
 
 using namespace std;
 
-char * percent(deque<treshold_t> d, vector<sVolumes> vol);
+const char * percent(deque<treshold_t> d, vector<sVolumes> vol);
