@@ -30,14 +30,21 @@ class SoundPatty {
         ~SoundPatty();
         /*
         SoundPatty(const char*, Input *, all_cfg_t *);
-        SoundPatty(const char * name, Input *input, all_cfg_t *all_cfg, vals_t vals,
+        SoundPatty(const char * name, Input *input,
+        all_cfg_t *all_cfg, vals_t vals,
                        void(*fn)(const char*, const double));
                        */
         static all_cfg_t read_cfg(const char*);
         static vals_t read_captured_values(const char *);
         void setAction(int action, void (*fn)(const char*, const double));
         static void dump_out(const treshold_t args);
-        static void *go_thread(void *inst); // Same as SoundPatty::go(), but for pthreads
+
+        // Same as SoundPatty::go(), but for pthreads
+        static void *go_thread(void *inst);
+
+        /* How many seconds are processed already */
+        double sec_processed();
+
         int do_checking(const treshold_t args);
         map<string, double> cfg;
         int setInput(Input*);

@@ -205,13 +205,17 @@ int main (int argc, char *argv[]) {
         SoundPatty *pat = new SoundPatty(action, input, this_cfg, sp_params);
 
         LOG_INFO("Starting main SoundPatty loop");
-        SoundPatty::go_thread(pat);
+        pat->go();
         LOG_INFO("SoundPatty main loop completed");
         if (action == ACTION_AGGREGATE) {
             LOG_INFO("Calling aggregate");
-            const char* s = percent(pat->findings, this_cfg->second);
-            printf("%s\n", s);
+            string s = percent(
+                    pat->findings,
+                    this_cfg->second,
+                    pat->sec_processed());
+            cout << s;
         }
+        delete pat;
     } else {
         if (strcmp(idrv, "file") == 0) {
 

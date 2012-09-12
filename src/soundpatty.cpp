@@ -161,7 +161,7 @@ int SoundPatty::go() {
             delete(buf.buf);
         }
 
-        if ((double)gSCounter/_input->SAMPLE_RATE > cfg[which_timeout]) {
+        if (sec_processed() > cfg[which_timeout]) {
             // Timeout. Return 2
             return 2;
         }
@@ -169,6 +169,9 @@ int SoundPatty::go() {
     return 0;
 }
 
+double SoundPatty::sec_processed() {
+    return (double)gSCounter/_input->SAMPLE_RATE;
+}
 
 vals_t SoundPatty::read_captured_values(const char * filename) {
     vals_t vals;

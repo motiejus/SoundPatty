@@ -26,7 +26,8 @@
 #define BUF_LEN        (1024 * (EVENT_SIZE + 16))
 #endif // HAVE_INOTIFY_INIT
 
-void FileInput::monitor_ports(action_t action, const char* isource, all_cfg_t *cfg, void *sp_params) {
+void FileInput::monitor_ports(action_t action, const char* isource,
+        all_cfg_t *cfg, void *sp_params) {
 
 #ifdef HAVE_INOTIFY_INIT
     int fd = inotify_init();
@@ -106,11 +107,14 @@ FileInput::FileInput(const char *isource, all_cfg_t *cfg) {
 
     reading_over = false;
     s = sox_open_read(isource, NULL, NULL, NULL);
-    LOG_DEBUG("Sox initialized. Sampling rate: %.6f, channels: %d, bitrate: %d, samples: %d",
-            s->signal.rate, s->signal.channels, s->signal.precision, s->signal.length);
+    LOG_DEBUG("Sox initialized. Sampling rate: %.6f, channels: %d,"
+            "bitrate: %d, samples: %d",
+            s->signal.rate, s->signal.channels,
+            s->signal.precision, s->signal.length);
     SAMPLE_RATE = (int)s->signal.rate;
 
-    for (vector<sVolumes>::iterator vol = cfg->second.begin(); vol != cfg->second.end(); vol++) {
+    for (vector<sVolumes>::iterator vol = cfg->second.begin();
+            vol != cfg->second.end(); vol++) {
         vol->min *= (1<<30);
         vol->max *= (1<<30);
     }
