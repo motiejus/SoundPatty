@@ -14,8 +14,8 @@ Let us launch an example test:
     ./waf configure test
 
 This configures, builds, installs SoundPatty to current directory, downloads
-sample.wav and catch_me.wav.  sample.wav is a sample we want to capture in a
-catch_me.wav stream. Listen to both wavs if unclear :-)
+`sample.wav` and `catch_me.wav`.  sample.wav is a sample we want to capture in
+a `catch_me.wav` stream. Listen to both wavs if unclear :-)
 
 SoundPatty supports any format sox supports and Jack. File inputs usage is
 self-descriptive in `./waf test`.
