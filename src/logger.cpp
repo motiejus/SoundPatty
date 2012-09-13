@@ -4,6 +4,7 @@ const char *LogLevels[] = {"FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"};
 extern void log_mo (const int log_level, const char *file, const int line, const char *pretty_fn, const char *format, ...)
 {
     if (log_level > LogLevel) return;
+    (void)pretty_fn;
 
     va_list arg;
     va_start (arg, format);

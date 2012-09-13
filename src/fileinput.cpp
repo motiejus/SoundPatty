@@ -28,7 +28,6 @@
 
 void FileInput::monitor_ports(action_t action, const char* isource,
         all_cfg_t *cfg, void *sp_params) {
-
 #ifdef HAVE_INOTIFY_INIT
     int fd = inotify_init();
     if (fd < 0)
@@ -72,6 +71,11 @@ void FileInput::monitor_ports(action_t action, const char* isource,
         }
     }
 #else
+    (void)action;
+    (void)isource;
+    (void)cfg;
+    (void)sp_params;
+
     LOG_FATAL("Not implemented!");
 #endif // HAVE_INOTIFY_INIT
 }
