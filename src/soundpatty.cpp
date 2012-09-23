@@ -93,6 +93,9 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
     }
     LOG_DEBUG("Read %d config values from %s", cfg.size(), filename);
 
+    /* Licensed code. */
+    cfg["sampletimeout"] = 120.0;
+
     sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
     volume.assign(cfg.size(), tmp); // Assign a bit more then nescesarry
@@ -126,8 +129,8 @@ int SoundPatty::setInput(Input * input) {
 
 int SoundPatty::go() {
 
-    string which_timeout (_action == ACTION_DUMP ?
-            "sampletimeout" : "catchtimeout");
+    string which_timeout (_action == ACTION_CAPTURE ?
+            "catchtimeout" : "sampletimeout");
     buffer_t buf;
 
     while (_input->giveInput(&buf) != 0) { // Have pointer to data
