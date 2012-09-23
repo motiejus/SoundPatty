@@ -13,12 +13,10 @@ endif(HAVE_JACK AND HAVE_PTHREAD)
 add_executable (soundpatty ${srcs})
 target_link_libraries (soundpatty ${extra_libs})
 
-# TODO: symlink on Unix
-#file(COPY soundpatty DESTINATION ${PROJECT_SOURCE_DIR})
-
-
 add_test (soundpattyStarts soundpatty)
 
+# TODO: symlink on Unix
+#file(COPY soundpatty DESTINATION ${PROJECT_SOURCE_DIR})
 #file(DOWNLOAD
 #    "http://github.com/downloads/Motiejus/SoundPatty/sample.wav"
 #    "${PROJECT_SOURCE_DIR}/sample.wav"
