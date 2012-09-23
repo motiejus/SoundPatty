@@ -5,6 +5,7 @@
 CMakeFiles
 CMakeCache.txt
 Makefile
-src/soundpatty
-src/config.h
-Testing/
+/src/soundpatty
+/src/config.h
+/soundpatty
+/Testing/
