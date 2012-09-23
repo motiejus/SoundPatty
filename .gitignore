@@ -1,2 +1,10 @@
 *.o
 *.wav
+*.cmake
+*.sw[op]
+CMakeFiles
+CMakeCache.txt
+Makefile
+src/soundpatty
+src/config.h
+Testing/
