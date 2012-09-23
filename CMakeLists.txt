@@ -4,6 +4,9 @@ include (CheckIncludeFile)
 include (CheckFunctionExists)
 
 if (IS_DIRECTORY "${PROJECT_SOURCE_DIR}/sox")
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -DWAV49)
+    set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS} -DWAV49)
+
     include_directories ("${PROJECT_SOURCE_DIR}/sox")
     include_directories ("${PROJECT_SOURCE_DIR}/sox/src")
     add_subdirectory (sox)
