@@ -30,7 +30,6 @@
 #include <sstream>
 #include <fstream>
 
-#include <pthread.h>
 #include <stdint.h>
 
 #include <sys/types.h>

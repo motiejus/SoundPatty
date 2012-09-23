@@ -1,12 +1,15 @@
 #ifndef __SP_LOGGER_H_INCLUDED__
 #define __SP_LOGGER_H_INCLUDED__
 
+#include <sys/time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
+#ifdef HAVE_PTHREAD
 #include <pthread.h>
-#include <sys/time.h>
+#endif
 
 #define PRE_PRE __FILE__,__LINE__,__PRETTY_FUNCTION__
 #define LOG_TRACE(...)  log_mo(5,PRE_PRE, __VA_ARGS__)
@@ -17,6 +20,12 @@
 #define LOG_FATAL(...)  log_mo(0,PRE_PRE, __VA_ARGS__)
 
 extern int LogLevel; 
-extern void log_mo (const int log_level, const char *file, const int line, const char *pretty_fn, const char *format, ...);
+extern void log_mo (
+        const int log_level,
+        const char *file,
+        const int line,
+        const char *pretty_fn,
+        const char *format,
+        ...);
 
 #endif //__SP_LOGGER_H_INCLUDED__

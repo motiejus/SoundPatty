@@ -6,9 +6,9 @@ configure_file (
 set(srcs
     main.cpp soundpatty.cpp aggregate.cpp fileinput.cpp input.cpp logger.cpp)
 
-if(${HAVE_JACK})
+if(HAVE_JACK AND HAVE_PTHREAD)
     set(srcs ${srcs} jackinput.cpp)
-endif(${HAVE_JACK})
+endif(HAVE_JACK AND HAVE_PTHREAD)
 
 add_executable (soundpatty ${srcs})
 target_link_libraries (soundpatty ${extra_libs})

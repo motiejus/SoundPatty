@@ -25,6 +25,7 @@ void Input::new_port_created(
     // So we have new port created here. In case of jack -
     // it's safe to call jack server here, since it's not a caller thread :-)
 
+#ifdef HAVE_PTHREAD
     LOG_DEBUG("Creating SoundPatty instance for new port");
     SoundPatty *pat = new SoundPatty(action, input, cfg, sp_params);
 
@@ -33,4 +34,7 @@ void Input::new_port_created(
     if ((err = pthread_create(&tmp, &attr, SoundPatty::go_thread, (void*)pat)))
         LOG_ERROR("Failed to create thread for %s, error %d", port_name, err);
     LOG_INFO("Launched new SoundPatty thread for %s", port_name);
+#else
+    LOG_FATAL("Not implemented");
+#endif
 }

@@ -78,7 +78,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
         file.open(filename);
     } catch (ifstream::failure e) {
         LOG_FATAL("Could not read config file %s", filename);
-        pthread_exit(NULL);
+        exit(1);
     }
 
     string line;
