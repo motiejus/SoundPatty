@@ -11,5 +11,6 @@ if(${HAVE_JACK})
 endif(${HAVE_JACK})
 
 add_executable (soundpatty ${srcs})
-
 target_link_libraries (soundpatty ${extra_libs})
+
+add_test (soundpattyStarts soundpatty)

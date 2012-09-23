@@ -21,3 +21,5 @@ if(${HAVE_JACK})
 endif(${HAVE_JACK})
 
 add_subdirectory(src)
+
+ENABLE_TESTING()
