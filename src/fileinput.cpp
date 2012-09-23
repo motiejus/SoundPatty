@@ -1,16 +1,16 @@
 #include "fileinput.h"
-#ifdef HAVE_INOTIFY_INIT
+#ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
 /* size of the event structure, not counting name */
 #define EVENT_SIZE  (sizeof (struct inotify_event))
 
 /* reasonable guess as to size of 1024 events */
 #define BUF_LEN        (1024 * (EVENT_SIZE + 16))
-#endif // HAVE_INOTIFY_INIT
+#endif // HAVE_INOTIFY
 
 void FileInput::monitor_ports(action_t action, const char* isource,
         all_cfg_t *cfg, void *sp_params) {
-#ifdef HAVE_INOTIFY_INIT
+#ifdef HAVE_INOTIFY
     int fd = inotify_init();
     if (fd < 0)
         LOG_FATAL("inotify_init failed");
@@ -59,7 +59,7 @@ void FileInput::monitor_ports(action_t action, const char* isource,
     (void)sp_params;
 
     LOG_FATAL("Not implemented!");
-#endif // HAVE_INOTIFY_INIT
+#endif // HAVE_INOTIFY
 }
 int FileInput::giveInput(buffer_t *buf_prop) {
     if (reading_over) { return 0; }
