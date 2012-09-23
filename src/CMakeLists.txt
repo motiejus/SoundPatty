@@ -14,7 +14,7 @@ add_executable (soundpatty ${srcs})
 target_link_libraries (soundpatty ${extra_libs})
 
 # TODO: symlink on Unix
-file(COPY soundpatty DESTINATION ${PROJECT_SOURCE_DIR})
+#file(COPY soundpatty DESTINATION ${PROJECT_SOURCE_DIR})
 
 
 add_test (soundpattyStarts soundpatty)
