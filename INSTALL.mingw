@@ -1,0 +1,18 @@
+In order to compile stand-alone Windows binary, you need to do the following:
+
+1. Install mingw32
+
+    sudo apt-get install mingw32
+
+2. Acquire sox source and put it to "sox" subfolder. 
+
+    git clone -b mingw4.2.1 git://github.com:Motiejus/sox.git
+
+3. Run cmake to configure the project for cross-compilation:
+
+    cmake -DCMAKE_TOOLCHAIN_FILE=./i586-mingw32msvc.cmake
+
+4. make
+
+It compiles SoX and SoundPatty. After that you have `src/soundpatty.exe`, which
+you can run in Windows terminal.
