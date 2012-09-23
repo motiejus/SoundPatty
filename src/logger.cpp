@@ -36,9 +36,9 @@ int asprintf( char **sptr, char *fmt, ... )
 #endif
 
 #ifdef HAVE_PTHREAD
-#define LOG_LINE "%s [%x] %-19s %-5s - %s\n"
+#define LOG_LINE "%s [%x] %-19s %-5s - %s\n\n"
 #else
-#define LOG_LINE "%s [?] %-19s %-5s - %s\n"
+#define LOG_LINE "%s [?] %-19s %-5s - %s\n\n"
 #endif
 
 int LogLevel = 3;
@@ -73,14 +73,16 @@ extern void log_mo (const int log_level, const char *file, const int line,
     sprintf(fileline, "%s(%d)", file, line);
     // &fileline[7] due to skipping first 7 characters
     // (with default waf build it's '../src/'
-    if ( -1 == asprintf (&prefix, LOG_LINE,
+    const char *fn = strrchr(fileline, '/');
+    fn = fn == NULL ? fileline : fn+1;
+    if ( -1 == asprintf (&prefix, (char*)LOG_LINE,
                 datetime,
 #ifdef HAVE_PTHREAD
                 (unsigned int)pthread_self(),
 #endif
-                &fileline[7],
+                fn,
                 LogLevels[log_level],
-                (char*)format)
+                format)
             )
     {
         printf ("FATAL: Memory allocation failed!");
