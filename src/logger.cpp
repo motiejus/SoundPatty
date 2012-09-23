@@ -1,5 +1,40 @@
 #include "logger.h"
 
+#ifndef HAVE_ASPRINTF
+// asprintf stolen from: http://mingw-users.1079350.n2.nabble.com/
+// Query-regarding-offered-alternative-to-asprintf-td6329481.html
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+
+int asprintf( char **, char *, ... );
+int vasprintf( char **, char *, va_list );
+FILE *ftrash = NULL;
+
+int vasprintf( char **sptr, char *fmt, va_list argv )
+{
+        if(!ftrash) ftrash = fopen("nul", "wb"); /* on windows, /dev/null = nul */
+        if(!ftrash) fprintf(stderr, "this shouldn't happen\n");
+        int wanted = vfprintf( ftrash, fmt, argv );
+
+        if( (wanted < 0) || ((*sptr = (char*)malloc( 1 + wanted )) == NULL) )
+            return -1;
+        (*sptr)[wanted] = '\0';
+        return vsnprintf( *sptr, wanted, fmt, argv );
+}
+
+int asprintf( char **sptr, char *fmt, ... )
+{
+        int retval;
+        va_list argv;
+        va_start( argv, fmt );
+        retval = vasprintf( sptr, fmt, argv );
+               
+        va_end( argv );
+        return retval;
+} 
+#endif
+
 #ifdef HAVE_PTHREAD
 #define LOG_LINE "%s [%x] %-19s %-5s - %s\n"
 #else
@@ -45,7 +80,7 @@ extern void log_mo (const int log_level, const char *file, const int line,
 #endif
                 &fileline[7],
                 LogLevels[log_level],
-                format)
+                (char*)format)
             )
     {
         printf ("FATAL: Memory allocation failed!");
