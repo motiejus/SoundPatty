@@ -1,0 +1,4 @@
+#cmakedefine HAVE_SOX
+#cmakedefine HAVE_JACK
+#cmakedefine HAVE_INOTIFY
+#cmakedefine HAVE_PTHREAD
