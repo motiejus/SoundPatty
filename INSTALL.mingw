@@ -6,7 +6,7 @@ In order to compile stand-alone Windows binary, you need to do the following:
 
 2. Acquire sox source and put it to "sox" subfolder. 
 
-    git clone -b mingw4.2.1 git://github.com:Motiejus/sox.git
+    git clone -b mingw4.2.1 git://github.com/Motiejus/sox.git
 
 3. Run cmake to configure the project for cross-compilation:
 
