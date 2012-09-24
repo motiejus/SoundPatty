@@ -1,6 +1,6 @@
 *.o
 *.wav
-*.cmake
+cmake_install.cmake
 *.sw[op]
 CMakeFiles
 CMakeCache.txt
