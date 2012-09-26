@@ -44,12 +44,10 @@ length was in the record.
 
 Output:
 
-    0: 295.222, 94.9146%
+    295.222, 94.9146%
 
-1. `0:` means volume treshold. Since there is only one treshold in `silent.cfg`,
-   only one value is seen.
-2. `295.222` is the length of silence in the record, in seconds.
-3. `94.9146%` is the percentage of silence in the record. Note that it can be
+1. `295.222` is the length of silence in the record, in seconds.
+2. `94.9146%` is the percentage of silence in the record. Note that it can be
    derived from the 2'nd value and file length, so this value is there for
    convenience.
 

@@ -18,10 +18,10 @@ string percent(deque<treshold_t> d, vector<sVolumes> vol, double len) {
     for (unsigned i = 0; i < vol.size(); i++) {
         if (agg[i] != 0) {
             double percent = agg[i] / len*100;
-            ret << i << ": " << agg[i] << ", " << percent << "%" << endl;
+            ret << agg[i] << " " << percent << "%" << endl;
             //cout << ret.str();
         } else {
-            ret << i << ": " << 0 << ", " << 0 << "%" << endl;
+            ret << 0 << " " << 0 << "%" << endl;
         }
     }
     return ret.str();
