@@ -94,7 +94,7 @@ all_cfg_t SoundPatty::read_cfg (const char * filename) {
     LOG_DEBUG("Read %d config values from %s", cfg.size(), filename);
 
     /* Licensed code. */
-    cfg["sampletimeout"] = 120.0;
+    cfg["sampletimeout"] = 120.1;
 
     sVolumes tmp;
     tmp.head = tmp.tail = tmp.max = tmp.min = tmp.proc = 0;
