@@ -121,7 +121,7 @@ int main (int argc, char *argv[]) {
         usage();
     }
 
-    LogLevel = quiet? 1 : LogLevel;
+    LogLevel = quiet? 2 : LogLevel;
 
     if (action == ACTION_SHOWDRV) {
             string drivers("file");
