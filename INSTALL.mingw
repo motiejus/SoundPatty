@@ -4,7 +4,7 @@ In order to compile stand-alone Windows binary, you need to do the following:
 
     sudo apt-get install mingw32
 
-2. Acquire sox source and put it to "sox" subfolder. 
+2. Acquire sox source* and put it to "sox" subfolder.
 
     git clone -b mingw4.2.1 git://github.com/Motiejus/sox.git
 
@@ -16,3 +16,10 @@ In order to compile stand-alone Windows binary, you need to do the following:
 
 It compiles SoX and SoundPatty. After that you have `src/soundpatty.exe`, which
 you can run in Windows terminal.
+
+[*]: At the moment in order to compile sox from source on mingw 4.2.1 (standard
+Ubuntu 12.04 version), it needs a small patch, which is why my sox repository
+is specified. I am trying to get that patch included to upsteeam sox. See
+thread in sox-users mailing list[1] for more information.
+
+[1]: http://comments.gmane.org/gmane.comp.audio.sox/4709
