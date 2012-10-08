@@ -9,17 +9,6 @@ Efficient and fast sound (i.e. record) recognition software.
   (for example, "phone is out of radio coverage")
 
 ## Usage ##
-Let us launch an example test:
-
-    ./waf configure test
-
-This configures, builds, installs SoundPatty to current directory, downloads
-`sample.wav` and `catch_me.wav`.  sample.wav is a sample we want to capture in
-a `catch_me.wav` stream. Listen to both wavs if unclear :-)
-
-SoundPatty supports any format sox supports and Jack. File inputs usage is
-self-descriptive in `./waf test`.
-
 You can try jack like this:
 
     $ mplayer -ao jack:name=mp 
@@ -57,6 +46,7 @@ might not work.
 
 ## TODO ##
 
+* Port old waf tests to cmake.
 * Make capturing algorithm more tolerant about items in the first positions
   (say, 30% allowed ranges) and more restrictive at the end. This would help
   immensely for determining whether record is "recognize-able" or not.
