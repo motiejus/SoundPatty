@@ -30,6 +30,10 @@ Get `sample.wav` and `catch_me.wav` from here:
 http://github.com/downloads/Motiejus/SoundPatty/sample.wav
 http://github.com/downloads/Motiejus/SoundPatty/catch_me.wav
 
+Sample file (`-s` parameter) is what you get when you do a `dump` action (`-a
+dump`), NOT the original audio sample (in fact, audio sample can be acquired
+from JACK).
+
 Also, you can try jack like this:
 
     $ mplayer -ao jack:name=mp 
