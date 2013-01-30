@@ -8,6 +8,16 @@ Efficient and fast sound (i.e. record) recognition software.
 * You can match special operator messages when trying to initiate a VoIP call
   (for example, "phone is out of radio coverage")
 
+## Compilation ##
+
+You need to have sox (and optionally, jack) installed in your system. On Unix
+platforms:
+
+    $ cmake .
+    $ make
+
+See `INSTALL.mingw` for instructions how to do it for Windows.
+
 ## Usage ##
 You can try jack like this:
 
