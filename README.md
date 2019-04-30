@@ -1,5 +1,19 @@
+## Important Note ##
+
+*This piece of software is not maintained, and has a lot to be desired:*
+
+- It likely does not compile on modern compilers (see #11).
+- This was my first non-trivial C++ project. I didn't know valgrind, didn't
+  know stack from the heap, and many other things.
+- Given all that, it does what it advertises, and ran for some time in
+  production catching records we wanted to catch.
+
+I will not accept pull requests nor improvements, but, if a future maintainer
+steps in and proves (him|her)self worthy, I will add a note to this README
+recommending their work.
+
 ## What is this ##
-Efficient and fast sound (i.e. record) recognition software.
+Sound record recognition software.
 
 ## Where can You use it ##
 * You can listen to live radio station and log how many your advertisements are
